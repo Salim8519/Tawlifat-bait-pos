@@ -1,0 +1,40 @@
+export const multiVendorTranslations = {
+  ar: {
+    vendors: 'المتاجر',
+    searchVendor: 'ابحث عن متجر...',
+    allVendors: 'جميع المتاجر',
+    foodVendors: 'متاجر الطعام',
+    nonFoodVendors: 'متاجر المنتجات',
+    products: 'منتج',
+    open: 'مفتوح',
+    closed: 'مغلق',
+    openingHours: 'ساعات العمل',
+    food: 'طعام',
+    nonFood: 'منتج',
+    currency: 'ر.ع',
+    viewProducts: 'عرض المنتجات',
+    location: 'الموقع',
+    rating: 'التقييم',
+    description: 'الوصف',
+    close: 'إغلاق'
+  },
+  en: {
+    vendors: 'Vendors',
+    searchVendor: 'Search for a vendor...',
+    allVendors: 'All Vendors',
+    foodVendors: 'Food Vendors',
+    nonFoodVendors: 'Non-Food Vendors',
+    products: 'products',
+    open: 'Open',
+    closed: 'Closed',
+    openingHours: 'Opening Hours',
+    food: 'Food',
+    nonFood: 'Product',
+    currency: 'OMR',
+    viewProducts: 'View Products',
+    location: 'Location',
+    rating: 'Rating',
+    description: 'Description',
+    close: 'Close'
+  }
+};

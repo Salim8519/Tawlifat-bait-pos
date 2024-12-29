@@ -1,0 +1,40 @@
+export const dashboardTranslations = {
+  ar: {
+    dashboard: 'لوحة التحكم',
+    dailySales: 'المبيعات اليومية',
+    newCustomers: 'العملاء الجدد',
+    totalSales: 'إجمالي المبيعات',
+    activeProducts: 'المنتجات النشطة',
+    latestSales: 'أحدث المبيعات',
+    topProducts: 'المنتجات الأكثر مبيعاً',
+    today: 'اليوم',
+    yesterday: 'أمس',
+    thisWeek: 'هذا الأسبوع',
+    thisMonth: 'هذا الشهر',
+    currency: 'ر.ع',
+    from: 'من',
+    increase: 'ارتفاع',
+    decrease: 'انخفاض',
+    noSalesData: 'سيتم إضافة جدول المبيعات الأخيرة هنا',
+    noProductsData: 'سيتم إضافة قائمة المنتجات الأكثر مبيعاً هنا'
+  },
+  en: {
+    dashboard: 'Dashboard',
+    dailySales: 'Daily Sales',
+    newCustomers: 'New Customers',
+    totalSales: 'Total Sales',
+    activeProducts: 'Active Products',
+    latestSales: 'Latest Sales',
+    topProducts: 'Top Products',
+    today: 'Today',
+    yesterday: 'Yesterday',
+    thisWeek: 'This Week',
+    thisMonth: 'This Month',
+    currency: 'OMR',
+    from: 'from',
+    increase: 'increase',
+    decrease: 'decrease',
+    noSalesData: 'Latest sales table will be added here',
+    noProductsData: 'Top selling products list will be added here'
+  }
+};
