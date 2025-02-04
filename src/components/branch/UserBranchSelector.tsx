@@ -1,40 +1,28 @@
 import React from 'react';
 import { Store } from 'lucide-react';
 import { useLanguageStore } from '../../store/useLanguageStore';
-import { useBranchStore } from '../../store/useBranchStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useBranchSelection } from '../../hooks/useBranchSelection';
 import { branchTranslations } from '../../translations/branch';
+import type { Branch } from '../../types/branch';
 
-export function UserBranchSelector() {
+interface Props {
+  branches: Branch[];
+}
+
+export function UserBranchSelector({ branches }: Props) {
   const { language } = useLanguageStore();
   const t = branchTranslations[language];
   const { user } = useAuthStore();
-  const { branches, selectedBranchId, setSelectedBranch } = useBranchStore();
+  const { selectedBranchId, setSelectedBranch } = useBranchSelection(branches);
 
-  // Filter branches based on user role and assignments
-  const userBranches = React.useMemo(() => {
-    if (user?.role === 'owner') {
-      return branches; // Owner can see all branches
-    } else if (user?.role === 'cashier') {
-      // Filter branches assigned to this cashier
-      return branches.filter(branch => 
-        user.assignedBranches?.includes(branch.id)
-      );
-    }
-    return [];
-  }, [branches, user]);
+  const currentBranch = branches.find(b => b.branch_id === selectedBranchId);
+  const mainBranch = branches.find(b => b.isMain);
 
-  React.useEffect(() => {
-    // Set first available branch as default if none selected
-    if (!selectedBranchId && userBranches.length > 0) {
-      setSelectedBranch(userBranches[0].id);
-    }
-  }, [userBranches, selectedBranchId, setSelectedBranch]);
-
-  if (userBranches.length === 0) return null;
-
-  const selectedBranch = userBranches.find(branch => branch.id === selectedBranchId);
-
+  // For cashiers, only show their assigned main branch
+  const availableBranches = user?.role === 'cashier' && mainBranch
+    ? [mainBranch]
+    : branches;
   return (
     <div className="px-4 py-2 bg-indigo-50 border-b">
       <div className="flex items-center justify-between">
@@ -48,19 +36,19 @@ export function UserBranchSelector() {
           className="ml-2 px-2 py-1 text-sm border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           dir={language === 'ar' ? 'rtl' : 'ltr'}
         >
-          {user?.role === 'owner' && (
+          {(user?.role === 'owner' || user?.role === 'manager') && (
             <option value="all">{t.allBranches}</option>
           )}
-          {userBranches.map(branch => (
-            <option key={branch.id} value={branch.id}>
-              {branch.name}
+          {availableBranches.map(branch => (
+            <option key={branch.branch_id} value={branch.branch_id}>
+              {branch.branch_name}
             </option>
           ))}
         </select>
       </div>
-      {selectedBranch && selectedBranchId !== 'all' && (
+      {currentBranch && selectedBranchId !== 'all' && (
         <div className="mt-1 text-xs text-gray-500">
-          {selectedBranch.location}
+          {currentBranch.location}
         </div>
       )}
     </div>

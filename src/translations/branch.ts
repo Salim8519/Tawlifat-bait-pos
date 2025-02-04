@@ -14,11 +14,21 @@ export const branchTranslations = {
     allBranches: 'جميع الفروع',
     save: 'حفظ',
     cancel: 'إلغاء',
-    delete: 'حذف',
-    confirmDelete: 'هل أنت متأكد من حذف هذا الفرع؟',
+    activate: 'تفعيل',
+    deactivate: 'إيقاف',
+    confirmDeactivate: 'هل أنت متأكد من إيقاف هذا الفرع؟',
+    confirmActivate: 'تأكيد تفعيل الفرع',
+    confirmActivateMessage: 'هل أنت متأكد من تفعيل فرع {name}؟',
+    confirm: 'تأكيد',
     branchAdded: 'تم إضافة الفرع بنجاح',
     branchUpdated: 'تم تحديث الفرع بنجاح',
-    branchDeleted: 'تم حذف الفرع بنجاح'
+    branchDeactivated: 'تم إيقاف الفرع بنجاح',
+    branchActivated: 'تم تفعيل الفرع بنجاح',
+    loading: 'جاري التحميل...',
+    errorLoadingBranches: 'حدث خطأ أثناء تحميل الفروع',
+    errorSavingBranch: 'حدث خطأ أثناء حفظ الفرع',
+    errorDeactivatingBranch: 'حدث خطأ أثناء إيقاف الفرع',
+    errorActivatingBranch: 'حدث خطأ أثناء تفعيل الفرع'
   },
   en: {
     branches: 'Branches',
@@ -35,10 +45,20 @@ export const branchTranslations = {
     allBranches: 'All Branches',
     save: 'Save',
     cancel: 'Cancel',
-    delete: 'Delete',
-    confirmDelete: 'Are you sure you want to delete this branch?',
+    activate: 'Activate',
+    deactivate: 'Deactivate',
+    confirmDeactivate: 'Are you sure you want to deactivate this branch?',
+    confirmActivate: 'Confirm Branch Activation',
+    confirmActivateMessage: 'Are you sure you want to activate branch {name}?',
+    confirm: 'Confirm',
     branchAdded: 'Branch added successfully',
     branchUpdated: 'Branch updated successfully',
-    branchDeleted: 'Branch deleted successfully'
+    branchDeactivated: 'Branch deactivated successfully',
+    branchActivated: 'Branch activated successfully',
+    loading: 'Loading...',
+    errorLoadingBranches: 'Error loading branches',
+    errorSavingBranch: 'Error saving branch',
+    errorDeactivatingBranch: 'Error deactivating branch',
+    errorActivatingBranch: 'Error activating branch'
   }
 };

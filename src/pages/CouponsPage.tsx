@@ -1,118 +1,132 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Ticket, RefreshCw } from 'lucide-react';
 import { useLanguageStore } from '../store/useLanguageStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { couponTranslations } from '../translations/coupons';
-import type { Discount, DiscountType } from '../types/pos';
+import { getCoupons, createCoupon, updateCoupon, deleteCoupon, generateCouponCode, type Coupon } from '../services/couponService';
+import { ArrowUpDown } from 'lucide-react';
 
-interface Coupon {
-  id: string;
-  code: string;
-  name: string;
-  description?: string;
-  type: DiscountType;
-  value: number;
-  startDate: string;
-  expiryDate: string;
-  minimumPurchase?: number;
-  maxUsage?: number;
-  usageCount: number;
-  isActive: boolean;
-}
-
-// Mock data - replace with API calls
-const mockCoupons: Coupon[] = [
-  {
-    id: '1',
-    code: 'SUMMER2024',
-    name: 'خصم الصيف',
-    description: 'خصم خاص لموسم الصيف',
-    type: 'percentage',
-    value: 15,
-    startDate: '2024-06-01',
-    expiryDate: '2024-08-31',
-    minimumPurchase: 50,
-    maxUsage: 100,
-    usageCount: 45,
-    isActive: true
-  },
-  {
-    id: '2',
-    code: 'WELCOME10',
-    name: 'خصم الترحيب',
-    type: 'fixed',
-    value: 10,
-    startDate: '2024-01-01',
-    expiryDate: '2024-12-31',
-    usageCount: 230,
-    isActive: true
-  },
-  {
-    id: '3',
-    code: 'FLASH25',
-    name: 'تخفيضات فلاش',
-    type: 'percentage',
-    value: 25,
-    startDate: '2024-03-01',
-    expiryDate: '2024-03-02',
-    maxUsage: 50,
-    usageCount: 50,
-    isActive: false
-  }
-];
+type SortField = 'coupon_code' | 'discount_value' | 'number_of_uses' | 'expiry_date' | 'created_at';
+type SortDirection = 'asc' | 'desc';
 
 export function CouponsPage() {
   const { language } = useLanguageStore();
+  const { user } = useAuthStore();
   const t = couponTranslations[language];
 
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'expired'>('all');
+  const [sortField, setSortField] = useState<SortField>('created_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [showStatusModal, setShowStatusModal] = useState<Coupon | null>(null);
 
-  const generateCouponCode = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let code = '';
-    for (let i = 0; i < 8; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
+  useEffect(() => {
+    if (user?.businessCode) {
+      loadCoupons();
     }
-    return code;
+  }, [user?.businessCode]);
+
+  const loadCoupons = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getCoupons(user!.businessCode);
+      setCoupons(data);
+    } catch (err) {
+      console.error('Error loading coupons:', err);
+      setError(t.errorLoadingCoupons);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const filteredCoupons = mockCoupons.filter(coupon => {
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+    <th
+      scope="col"
+      className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer group"
+      onClick={() => handleSort(field)}
+      title={sortField === field ? 
+        (sortDirection === 'asc' ? t.sortDesc : t.sortAsc) :
+        t.sortAsc
+      }
+    >
+      <div className="flex items-center justify-end space-x-1 space-x-reverse">
+        <span>{children}</span>
+        <ArrowUpDown className={`w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${
+          sortField === field ? 'opacity-100 text-indigo-500' : 'text-gray-400'
+        }`} />
+      </div>
+    </th>
+  );
+
+  const filteredCoupons = coupons.filter(coupon => {
     const matchesSearch = 
-      coupon.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      coupon.name.toLowerCase().includes(searchQuery.toLowerCase());
+      coupon.coupon_code.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const isExpired = new Date(coupon.expiryDate) < new Date();
+    const isExpired = coupon.expiry_date && new Date(coupon.expiry_date) < new Date();
     const matchesStatus = filterStatus === 'all' || 
-      (filterStatus === 'active' && coupon.isActive && !isExpired) ||
-      (filterStatus === 'expired' && (isExpired || !coupon.isActive));
+      (filterStatus === 'active' && !isExpired) ||
+      (filterStatus === 'expired' && isExpired);
 
     return matchesSearch && matchesStatus;
   });
 
-  const handleSave = (formData: FormData) => {
-    // Here you would typically make an API call to save the coupon
-    console.log('Saving coupon:', Object.fromEntries(formData));
-    setShowAddModal(false);
-    setEditingCoupon(null);
-  };
+  const sortedCoupons = React.useMemo(() => {
+    return [...filteredCoupons].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortField) {
+        case 'coupon_code':
+          comparison = a.coupon_code.localeCompare(b.coupon_code);
+          break;
+        case 'discount_value':
+          comparison = a.discount_value - b.discount_value;
+          break;
+        case 'number_of_uses':
+          comparison = a.number_of_uses - b.number_of_uses;
+          break;
+        case 'expiry_date':
+          if (!a.expiry_date && !b.expiry_date) comparison = 0;
+          else if (!a.expiry_date) comparison = 1;
+          else if (!b.expiry_date) comparison = -1;
+          else comparison = new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime();
+          break;
+        case 'created_at':
+          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [filteredCoupons, sortField, sortDirection]);
 
   const getCouponStatus = (coupon: Coupon) => {
-    const isExpired = new Date(coupon.expiryDate) < new Date();
-    if (!coupon.isActive) {
+    const isExpired = coupon.expiry_date && new Date(coupon.expiry_date) < new Date();
+    if (!coupon.is_active) {
       return {
         text: t.inactive,
         className: 'bg-gray-100 text-gray-800'
       };
-    }
-    if (isExpired) {
+    } else if (isExpired) {
       return {
         text: t.expired,
         className: 'bg-red-100 text-red-800'
       };
     }
-    if (coupon.maxUsage && coupon.usageCount >= coupon.maxUsage) {
+    if (coupon.max_uses && coupon.number_of_uses >= coupon.max_uses) {
       return {
         text: t.expired,
         className: 'bg-red-100 text-red-800'
@@ -122,6 +136,58 @@ export function CouponsPage() {
       text: t.active,
       className: 'bg-green-100 text-green-800'
     };
+  };
+
+  const handleToggleStatus = async (coupon: Coupon) => {
+    try {
+      await updateCoupon(coupon.coupon_id, {
+        is_active: !coupon.is_active
+      });
+      await loadCoupons();
+      setShowStatusModal(null);
+    } catch (err) {
+      console.error('Error toggling coupon status:', err);
+      setError(t.errorUpdatingStatus);
+    }
+  };
+
+  const handleSave = async (formData: FormData) => {
+    try {
+      const couponData = {
+        business_code: user!.businessCode,
+        coupon_code: formData.get('code') as string,
+        discount_type: formData.get('type') as 'fixed' | 'percentage',
+        discount_value: parseFloat(formData.get('value') as string),
+        max_uses: formData.get('maxUsage') ? parseInt(formData.get('maxUsage') as string) : null,
+        expiry_date: formData.get('expiryDate') as string || null,
+        min_purchase_amount: formData.get('minimumPurchase') ? parseFloat(formData.get('minimumPurchase') as string) : 0,
+        max_purchase_amount: formData.get('maximumPurchase') ? parseFloat(formData.get('maximumPurchase') as string) : 0,
+        is_active: true
+      };
+
+      if (editingCoupon) {
+        await updateCoupon(editingCoupon.coupon_id, couponData);
+      } else {
+        await createCoupon(couponData);
+      }
+
+      await loadCoupons();
+      setShowAddModal(false);
+      setEditingCoupon(null);
+    } catch (err) {
+      console.error('Error saving coupon:', err);
+      setError(t.errorSavingCoupon);
+    }
+  };
+
+  const handleDelete = async (couponId: string) => {
+    try {
+      await deleteCoupon(couponId);
+      await loadCoupons();
+    } catch (err) {
+      console.error('Error deleting coupon:', err);
+      setError(t.errorDeletingCoupon);
+    }
   };
 
   return (
@@ -170,18 +236,18 @@ export function CouponsPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <SortableHeader field="coupon_code">
                   {t.couponCode}
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </SortableHeader>
+                <SortableHeader field="discount_value">
                   {t.discountType}
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </SortableHeader>
+                <SortableHeader field="expiry_date">
                   {t.expiryDate}
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </SortableHeader>
+                <SortableHeader field="number_of_uses">
                   {t.usageCount}
-                </th>
+                </SortableHeader>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   {t.status}
                 </th>
@@ -191,28 +257,30 @@ export function CouponsPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredCoupons.map((coupon) => {
+              {sortedCoupons.map((coupon) => {
                 const status = getCouponStatus(coupon);
                 return (
-                  <tr key={coupon.id}>
+                  <tr key={coupon.coupon_id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{coupon.code}</div>
-                      <div className="text-sm text-gray-500">{coupon.name}</div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {coupon.coupon_code}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {coupon.type === 'fixed' ? (
-                        <span>{coupon.value} {t.currency}</span>
+                      {coupon.discount_type === 'fixed' ? (
+                        <span>{coupon.discount_value} {t.currency}</span>
                       ) : (
-                        <span>{coupon.value}%</span>
+                        <span>{coupon.discount_value}%</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(coupon.expiryDate).toLocaleDateString(
-                        language === 'ar' ? 'ar-SA' : 'en-US'
-                      )}
+                      {coupon.expiry_date ? new Date(coupon.expiry_date).toLocaleDateString(
+                        'en-US',
+                        { year: 'numeric', month: '2-digit', day: '2-digit' }
+                      ) : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {coupon.usageCount} / {coupon.maxUsage || t.unlimited}
+                      {coupon.number_of_uses} / {coupon.max_uses || t.unlimited}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${status.className}`}>
@@ -227,10 +295,15 @@ export function CouponsPage() {
                         {t.edit}
                       </button>
                       <button
+                        onClick={() => setShowStatusModal(coupon)}
+                        className={`text-${coupon.is_active ? 'red' : 'green'}-600 hover:text-${coupon.is_active ? 'red' : 'green'}-900 ml-4`}
+                      >
+                        {coupon.is_active ? t.deactivate : t.activate}
+                      </button>
+                      <button
                         onClick={() => {
-                          if (confirm(t.confirmDelete)) {
-                            // Handle delete
-                            console.log('Deleting coupon:', coupon.id);
+                          if (window.confirm(t.confirmDelete)) {
+                            handleDelete(coupon.coupon_id);
                           }
                         }}
                         className="text-red-600 hover:text-red-900"
@@ -260,27 +333,13 @@ export function CouponsPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t.couponName} <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    defaultValue={editingCoupon?.name}
-                    required
-                    className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    dir={language === 'ar' ? 'rtl' : 'ltr'}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     {t.couponCode} <span className="text-red-500">*</span>
                   </label>
                   <div className="flex space-x-2 space-x-reverse">
                     <input
                       type="text"
                       name="code"
-                      defaultValue={editingCoupon?.code}
+                      defaultValue={editingCoupon?.coupon_code}
                       required
                       className="flex-1 px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       dir="ltr"
@@ -298,20 +357,6 @@ export function CouponsPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t.description}
-                    <span className="text-gray-500 text-xs mr-1">({t.optional})</span>
-                  </label>
-                  <textarea
-                    name="description"
-                    defaultValue={editingCoupon?.description}
-                    rows={3}
-                    className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    dir={language === 'ar' ? 'rtl' : 'ltr'}
-                  />
-                </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -319,7 +364,7 @@ export function CouponsPage() {
                     </label>
                     <select
                       name="type"
-                      defaultValue={editingCoupon?.type || 'fixed'}
+                      defaultValue={editingCoupon?.discount_type || 'fixed'}
                       required
                       className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       dir={language === 'ar' ? 'rtl' : 'ltr'}
@@ -336,7 +381,7 @@ export function CouponsPage() {
                     <input
                       type="number"
                       name="value"
-                      defaultValue={editingCoupon?.value}
+                      defaultValue={editingCoupon?.discount_value}
                       required
                       min="0"
                       step="0.01"
@@ -346,44 +391,27 @@ export function CouponsPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t.startDate} <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      name="startDate"
-                      defaultValue={editingCoupon?.startDate}
-                      required
-                      className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t.expiryDate} <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      name="expiryDate"
-                      defaultValue={editingCoupon?.expiryDate}
-                      required
-                      className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t.expiryDate}
+                  </label>
+                  <input
+                    type="date"
+                    name="expiryDate"
+                    defaultValue={editingCoupon?.expiry_date ? new Date(editingCoupon.expiry_date).toISOString().split('T')[0] : ''}
+                    className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       {t.minimumPurchase}
-                      <span className="text-gray-500 text-xs mr-1">({t.optional})</span>
                     </label>
                     <input
                       type="number"
                       name="minimumPurchase"
-                      defaultValue={editingCoupon?.minimumPurchase}
+                      defaultValue={editingCoupon?.min_purchase_amount}
                       min="0"
                       step="0.01"
                       className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -394,12 +422,11 @@ export function CouponsPage() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       {t.maxUsage}
-                      <span className="text-gray-500 text-xs mr-1">({t.optional})</span>
                     </label>
                     <input
                       type="number"
                       name="maxUsage"
-                      defaultValue={editingCoupon?.maxUsage}
+                      defaultValue={editingCoupon?.max_uses}
                       min="0"
                       className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       dir="ltr"
@@ -428,6 +455,45 @@ export function CouponsPage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Status Toggle Modal */}
+      {showStatusModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h2 className="text-xl font-semibold mb-4">
+              {showStatusModal.is_active ? t.deactivateCoupon : t.activateCoupon}
+            </h2>
+            <p className="text-gray-600 mb-6">
+              {showStatusModal.is_active ? t.deactivateConfirmMessage : t.activateConfirmMessage}
+            </p>
+            
+            <div className="flex justify-end space-x-2 space-x-reverse">
+              <button
+                onClick={() => setShowStatusModal(null)}
+                className="px-4 py-2 text-gray-700 hover:text-gray-900"
+              >
+                {t.cancel}
+              </button>
+              <button
+                onClick={() => handleToggleStatus(showStatusModal)}
+                className={`px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                  showStatusModal.is_active 
+                    ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                    : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                }`}
+              >
+                {t.confirm}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
         </div>
       )}
     </div>

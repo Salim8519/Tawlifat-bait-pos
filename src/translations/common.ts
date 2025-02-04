@@ -22,7 +22,10 @@ export const commonTranslations = {
     price: 'السعر',
     quantity: 'الكمية',
     total: 'المجموع',
-    currency: 'ر.ع'
+    currency: 'ر.ع',
+    invalidImageType: 'نوع الملف غير صالح. يرجى اختيار صورة.',
+    imageTooLarge: 'حجم الصورة كبير جداً. الحد الأقصى هو 5 ميجابايت.',
+    imageUploadFailed: 'فشل رفع الصورة. يرجى المحاولة مرة أخرى.'
   },
   en: {
     loading: 'Loading...',
@@ -47,6 +50,9 @@ export const commonTranslations = {
     price: 'Price',
     quantity: 'Quantity',
     total: 'Total',
-    currency: 'OMR'
+    currency: 'OMR',
+    invalidImageType: 'Invalid file type. Please select an image.',
+    imageTooLarge: 'Image is too large. Maximum size is 5MB.',
+    imageUploadFailed: 'Failed to upload image. Please try again.'
   }
 };

@@ -3,7 +3,6 @@ import { NavLink } from 'react-router-dom';
 import { 
   Home, 
   ShoppingCart, 
-  ArrowLeftRight,
   DollarSign,
   Package, 
   Users, 
@@ -17,7 +16,8 @@ import {
   Tags,
   Ticket,
   Code,
-  ShieldCheck
+  ShieldCheck,
+  ArrowLeftRight
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useLanguageStore } from '../../store/useLanguageStore';
@@ -53,7 +53,7 @@ export function Sidebar() {
         </div>
         
         <nav className="mt-8 space-y-2">
-          {user?.role === 'super_admin' ? (
+          {user?.role === 'admin' ? (
             <>
               <NavItem to="/dashboard" icon={ShieldCheck}>
                 {language === 'ar' ? 'أصحاب المتاجر' : 'Store Owners'}
@@ -65,13 +65,16 @@ export function Sidebar() {
                 {language === 'ar' ? 'الموردين' : 'Vendors'}
               </NavItem>
             </>
-          ) : user?.role === 'sub_vendor' ? (
+          ) : user?.role === 'vendor' ? (
             <>
               <NavItem to="/dashboard" icon={Home}>
                 {language === 'ar' ? 'لوحة التحكم' : 'Dashboard'}
               </NavItem>
               <NavItem to="/products" icon={Package}>
                 {language === 'ar' ? 'منتجاتي' : 'My Products'}
+              </NavItem>
+              <NavItem to="/settings" icon={Settings}>
+                {language === 'ar' ? 'الإعدادات' : 'Settings'}
               </NavItem>
             </>
           ) : (
@@ -94,17 +97,17 @@ export function Sidebar() {
               <NavItem to="/cash-drawer" icon={DollarSign}>
                 {language === 'ar' ? 'درج النقود' : 'Cash Drawer'}
               </NavItem>
-              <NavItem to="/returns" icon={ArrowLeftRight}>
-                {language === 'ar' ? 'المرتجعات' : 'Returns'}
+              <NavItem to="/return-products" icon={ArrowLeftRight}>
+                {language === 'ar' ? 'إرجاع المنتجات' : 'Return Products'}
               </NavItem>
               <NavItem to="/receipts" icon={Receipt}>
-                {language === 'ar' ? 'سجل الفواتير' : 'Receipts'}
+                {language === 'ar' ? 'الفواتير' : 'Receipts'}
               </NavItem>
               <NavItem to="/reports" icon={BarChart}>
                 {language === 'ar' ? 'التقارير' : 'Reports'}
               </NavItem>
               
-              {user?.role === 'owner' && (
+              {(user?.role === 'owner' || user?.role === 'manager') && (
                 <>
                   <div className="pt-4 mb-2 border-t">
                     <p className="px-4 text-xs font-semibold text-gray-500 uppercase">
@@ -114,6 +117,9 @@ export function Sidebar() {
                   <NavItem to="/cashiers" icon={UserCog}>
                     {language === 'ar' ? 'الكاشير' : 'Cashiers'}
                   </NavItem>
+                 <NavItem to="/managers" icon={UserCog}>
+                   {language === 'ar' ? 'المدراء' : 'Managers'}
+                 </NavItem>
                   <NavItem to="/sub-vendors" icon={Truck}>
                     {language === 'ar' ? 'الموردين' : 'Vendors'}
                   </NavItem>

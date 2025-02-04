@@ -1,7 +1,11 @@
 export const vendorDashboardTranslations = {
   ar: {
     dashboard: 'لوحة تحكم المورد',
+    loading: 'جاري التحميل...',
+    noAssignments: 'لم يتم تعيينك لأي متجر بعد',
     totalStores: 'إجمالي المتاجر',
+    allBusinesses: 'جميع المتاجر',
+    allBranches: 'جميع الفروع',
     allOwners: 'جميع أصحاب المتاجر',
     activeProducts: 'المنتجات النشطة',
     monthlyRevenue: 'الإيرادات الشهرية',
@@ -28,7 +32,11 @@ export const vendorDashboardTranslations = {
   },
   en: {
     dashboard: 'Vendor Dashboard',
+    loading: 'Loading...',
+    noAssignments: 'You have not been assigned to any stores yet',
     totalStores: 'Total Stores',
+    allBusinesses: 'All Businesses',
+    allBranches: 'All Branches',
     allOwners: 'All Store Owners',
     activeProducts: 'Active Products',
     monthlyRevenue: 'Monthly Revenue',

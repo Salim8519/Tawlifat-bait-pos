@@ -1,18 +1,22 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { DashboardLayout } from './components/layout/DashboardLayout';
+import { useBusinessSettings } from './hooks/useBusinessSettings';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { POSPage } from './pages/POSPage';
 import { UpcomingProductsPage } from './pages/UpcomingProductsPage';
 import { ProductsPage } from './pages/ProductsPage';
-import { ReturnsPage } from './pages/ReturnsPage';
+import { ReturnProductsPage } from './pages/ReturnProductsPage';
+// import { ReturnsPage } from './pages/ReturnsPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { CashDrawerPage } from './pages/CashDrawerPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { VendorSettingsPage } from './pages/VendorSettingsPage';
 import { BranchManagementPage } from './pages/BranchManagementPage';
 import { CashiersPage } from './pages/CashiersPage';
+import { ManagersPage } from './pages/ManagersPage';
 import { SubVendorsPage } from './pages/SubVendorsPage';
 import { RentalManagementPage } from './pages/RentalManagementPage';
 import { CouponsPage } from './pages/CouponsPage';
@@ -27,11 +31,19 @@ import { useAuthStore } from './store/useAuthStore';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore();
+  const { settings, isLoading } = useBusinessSettings();
   const location = useLocation();
   
   if (!user) {
     // Redirect to login and save the attempted location
     return <Navigate to="/login" replace />;
+  }
+
+  // Wait for settings to load
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-screen">
+      <p className="text-gray-500">Loading settings...</p>
+    </div>;
   }
 
   return <>{children}</>;
@@ -56,10 +68,11 @@ function AppRoutes() {
           <Route path="cashiers" element={<AdminCashiersPage />} />
           <Route path="vendors" element={<SuperAdminPage />} />
         </>
-        ) : user?.role === 'sub_vendor' ? (
+        ) : user?.role === 'vendor' ? (
           <>
             <Route path="dashboard" element={<SubVendorDashboardPage />} />
             <Route path="products" element={<SubVendorProductsPage />} />
+            <Route path="settings" element={<VendorSettingsPage />} />
           </>
         ) : (
           <>
@@ -69,12 +82,13 @@ function AppRoutes() {
             <Route path="upcoming-products" element={<UpcomingProductsPage />} />
             <Route path="customers" element={<CustomersPage />} />
             <Route path="cash-drawer" element={<CashDrawerPage />} />
-            <Route path="returns" element={<ReturnsPage />} />
+            <Route path="return-products" element={<ReturnProductsPage />} />
             <Route path="receipts" element={<ReceiptsHistoryPage />} />
             <Route path="reports" element={<ReportsPage />} />
-            {user?.role === 'owner' && (
+            {(user?.role === 'owner' || user?.role === 'manager') && (
               <>
                 <Route path="cashiers" element={<CashiersPage />} />
+                <Route path="managers" element={<ManagersPage />} />
                 <Route path="sub-vendors" element={<SubVendorsPage />} />
                 <Route path="rentals" element={<RentalManagementPage />} />
                 <Route path="branches" element={<BranchManagementPage />} />

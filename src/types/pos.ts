@@ -6,6 +6,7 @@ export interface Product {
   nameAr: string;
   type: ProductType;
   price: number;
+  vendorPrice?: number;
   quantity: number;
   barcode?: string;
   vendorId: string;
@@ -19,6 +20,8 @@ export interface Product {
 
 export interface CartItem extends Product {
   quantity: number;
+  maxQuantity?: number; // Maximum quantity allowed (based on stock)
+  trackable: boolean; // Whether the item is trackable
   notes?: string;
 }
 

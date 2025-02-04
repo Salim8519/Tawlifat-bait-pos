@@ -1,27 +1,32 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { Store, AlertCircle } from 'lucide-react';
-import { useAuthStore } from '../store/useAuthStore';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { loginTranslations } from '../translations/login';
+import { useAuthStore } from '../store/useAuthStore';
+import { useAuth } from '../hooks/useAuth';
+import { getRedirectPath } from '../services/profileService';
 
 export function LoginPage() {
   const { language } = useLanguageStore();
   const t = loginTranslations[language];
   const navigate = useNavigate();
-  const login = useAuthStore(state => state.login);
+  const { user } = useAuthStore();
+  const { signIn, isLoading, error } = useAuth();
 
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Redirect if already logged in
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = login(username, password);
-    if (success) {
-      navigate('/dashboard');
-    } else {
-      setError(t.invalidCredentials);
+    const { user, profile } = await signIn(email, password);
+    if (user && profile) {
+      const redirectPath = getRedirectPath(profile);
+      navigate(redirectPath);
     }
   };
 
@@ -40,17 +45,17 @@ export function LoginPage() {
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                {t.username}
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                {t.email}
               </label>
               <div className="mt-1">
                 <input
-                  id="username"
-                  name="username"
-                  type="text"
+                  id="email"
+                  name="email"
+                  type="email"
                   required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
@@ -89,9 +94,10 @@ export function LoginPage() {
             <div>
               <button
                 type="submit"
+                disabled={isLoading}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                {t.login}
+                {isLoading ? t.loggingIn : t.login}
               </button>
             </div>
           </form>

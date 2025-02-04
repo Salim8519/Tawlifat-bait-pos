@@ -4,8 +4,10 @@ import type { Branch } from '../types/branch';
 
 interface BranchState {
   selectedBranchId: string | 'all' | null;
+  defaultBranchId: string | null;
   branches: Branch[];
   setSelectedBranch: (branchId: string | 'all') => void;
+  setDefaultBranchId: (branchId: string) => void;
   addBranch: (branch: Branch) => void;
   updateBranch: (branchId: string, updates: Partial<Branch>) => void;
   deleteBranch: (branchId: string) => void;
@@ -15,6 +17,7 @@ export const useBranchStore = create<BranchState>()(
   persist(
     (set) => ({
       selectedBranchId: null,
+      defaultBranchId: null,
       branches: [
         {
           id: '1',
@@ -36,6 +39,7 @@ export const useBranchStore = create<BranchState>()(
         }
       ],
       setSelectedBranch: (branchId) => set({ selectedBranchId: branchId }),
+      setDefaultBranchId: (branchId) => set({ defaultBranchId: branchId }),
       addBranch: (branch) => set((state) => ({
         branches: [...state.branches, branch],
         selectedBranchId: state.selectedBranchId || branch.id

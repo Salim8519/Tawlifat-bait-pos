@@ -1,11 +1,8 @@
 export interface Branch {
-  id: string;
-  name: string;
-  location: string;
-  phone: string;
-  isMain: boolean;
-  status: 'active' | 'inactive';
-  createdAt: string;
+  branch_id: string;
+  business_code: string; 
+  branch_name: string; 
+  is_active: boolean;
 }
 
 export interface BranchStats {

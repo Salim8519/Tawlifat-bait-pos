@@ -1,35 +1,32 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
-interface VendorCommission {
-  percentage: number;
-  isEnabled: boolean;
-  minimumAmount: number;
-}
+import type { BusinessSettings } from '../services/settingsService';
 
 interface SettingsState {
-  vendorCommission: VendorCommission;
-  updateVendorCommission: (commission: Partial<VendorCommission>) => void;
+  settings: BusinessSettings | null;
+  isLoading: boolean;
+  error: string | null;
+  setSettings: (settings: BusinessSettings | null) => void;
+  setIsLoading: (isLoading: boolean) => void;
+  setError: (error: string | null) => void;
+  updateSettings: (updates: Partial<BusinessSettings>) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      vendorCommission: {
-        percentage: 10,
-        isEnabled: true,
-        minimumAmount: 0
-      },
-      updateVendorCommission: (commission) =>
-        set((state) => ({
-          vendorCommission: {
-            ...state.vendorCommission,
-            ...commission
-          }
-        }))
+      settings: null,
+      isLoading: false,
+      error: null,
+      setSettings: (settings) => set({ settings }),
+      setIsLoading: (isLoading) => set({ isLoading }),
+      setError: (error) => set({ error }),
+      updateSettings: (updates) => set((state) => ({
+        settings: state.settings ? { ...state.settings, ...updates } : null
+      }))
     }),
     {
-      name: 'settings-storage'
+      name: 'business-settings-storage'
     }
   )
 );

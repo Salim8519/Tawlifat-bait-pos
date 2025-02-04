@@ -1,170 +1,277 @@
-import React, { useState } from 'react';
-import { Search, Filter, Building2, Calendar, CreditCard } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, Filter, Building2, Calendar, CreditCard, Plus, ArrowUpDown } from 'lucide-react';
 import { format, addMonths } from 'date-fns';
 import { useLanguageStore } from '../store/useLanguageStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { getVendorAssignments } from '../services/vendorService';
 import { rentalTranslations } from '../translations/rentals';
+import { getRentals, createRental, updateRentalPaymentStatus, deleteRental, type VendorRental, type CreateRentalData } from '../services/rentalService';
+import type { VendorAssignment } from '../types/vendor';
 
-interface Vendor {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-}
-
-interface PaymentStatus {
-  lastPaymentDate: string | null;
-  nextPaymentDate: string;
-  isOverdue: boolean;
-  daysUntilDue: number;
-}
-
-interface RentalSpace {
-  id: string;
-  name: string;
-  description: string;
-  type: 'shelf' | 'corner' | 'space';
-  location: string;
-  monthlyRent: number;
-  isOccupied: boolean;
-  currentVendor: Vendor | null;
-  paymentStatus: PaymentStatus;
-}
-
-// Mock vendors data
-const mockVendors: Vendor[] = [
-  {
-    id: '1',
-    name: 'أحمد محمد',
-    phone: '96812345678',
-    email: 'ahmed@example.com'
-  },
-  {
-    id: '2',
-    name: 'فاطمة علي',
-    phone: '96887654321',
-    email: 'fatima@example.com'
-  }
-];
-
-// Mock rental spaces data
-const mockSpaces: RentalSpace[] = [
-  {
-    id: '1',
-    name: 'رف A1',
-    description: 'رف عرض رئيسي',
-    type: 'shelf',
-    location: 'المدخل الرئيسي',
-    monthlyRent: 100,
-    isOccupied: true,
-    currentVendor: mockVendors[0],
-    paymentStatus: {
-      lastPaymentDate: format(new Date(2024, 1, 15), 'yyyy-MM-dd'),
-      nextPaymentDate: format(addMonths(new Date(2024, 1, 15), 1), 'yyyy-MM-dd'),
-      isOverdue: false,
-      daysUntilDue: 5
-    }
-  },
-  {
-    id: '2',
-    name: 'ركن B2',
-    description: 'ركن عرض كبير',
-    type: 'corner',
-    location: 'الطابق الأول',
-    monthlyRent: 150,
-    isOccupied: true,
-    currentVendor: mockVendors[1],
-    paymentStatus: {
-      lastPaymentDate: format(new Date(2024, 0, 15), 'yyyy-MM-dd'),
-      nextPaymentDate: format(addMonths(new Date(2024, 0, 15), 1), 'yyyy-MM-dd'),
-      isOverdue: true,
-      daysUntilDue: -15
-    }
-  },
-  {
-    id: '3',
-    name: 'مساحة C3',
-    description: 'مساحة عرض متوسطة',
-    type: 'space',
-    location: 'الطابق الثاني',
-    monthlyRent: 200,
-    isOccupied: false,
-    currentVendor: null,
-    paymentStatus: {
-      lastPaymentDate: null,
-      nextPaymentDate: format(new Date(2024, 2, 1), 'yyyy-MM-dd'),
-      isOverdue: false,
-      daysUntilDue: 15
-    }
-  }
-];
+type SortField = 'space_name' | 'vendor_business_name' | 'branch_name_rental' | 'monthly_rent' | 'payment_status' | 'next_payment_date';
+type SortDirection = 'asc' | 'desc';
 
 export function RentalManagementPage() {
   const { language } = useLanguageStore();
+  const { user } = useAuthStore();
   const t = rentalTranslations[language];
 
+  const [assignments, setAssignments] = useState<VendorAssignment[]>([]);
+  const [rentals, setRentals] = useState<VendorRental[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'occupied' | 'available'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'paid' | 'pending' | 'overdue'>('all');
+  const [filterBranch, setFilterBranch] = useState<string>('all');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedSpaceForPayment, setSelectedSpaceForPayment] = useState<RentalSpace | null>(null);
+  const [selectedRental, setSelectedRental] = useState<VendorRental | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState<VendorRental | null>(null);
+  const [selectedVendorEmail, setSelectedVendorEmail] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('');
+  const [sortField, setSortField] = useState<SortField>('space_name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-  const filteredSpaces = mockSpaces.filter(space => {
-    const matchesSearch = 
-      space.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      space.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      space.currentVendor?.name.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = filterStatus === 'all' || 
-      (filterStatus === 'occupied' && space.isOccupied) ||
-      (filterStatus === 'available' && !space.isOccupied);
+  useEffect(() => {
+    if (user?.businessCode) {
+      loadRentals();
+      loadAssignments();
+    }
+  }, [user?.businessCode]);
 
-    return matchesSearch && matchesStatus;
-  });
-
-  const handleAddPayment = (spaceId: string, formData: FormData) => {
-    console.log('Adding payment for space:', spaceId, Object.fromEntries(formData));
-    setShowPaymentModal(false);
-    setSelectedSpaceForPayment(null);
+  const loadAssignments = async () => {
+    try {
+      const data = await getVendorAssignments(user!.businessCode);
+      setAssignments(data);
+    } catch (err) {
+      console.error('Error loading assignments:', err);
+    }
   };
 
-  const getPaymentStatusDisplay = (status: PaymentStatus) => {
-    if (status.isOverdue) {
+  const loadRentals = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await getRentals(user!.businessCode);
+      setRentals(data);
+    } catch (err) {
+      console.error('Error loading rentals:', err);
+      setError(t.errorLoadingRentals);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Get unique vendors from assignments
+  const uniqueVendors = useMemo(() => {
+    const vendorsMap = new Map();
+    assignments.forEach(assignment => {
+      if (!vendorsMap.has(assignment.vendor_email_identifier)) {
+        vendorsMap.set(assignment.vendor_email_identifier, {
+          email: assignment.vendor_email_identifier,
+          name: assignment.profile?.["vendor_business _name"] || '',
+          businessCode: assignment.vendor_business_code
+        });
+      }
+    });
+    return Array.from(vendorsMap.values());
+  }, [assignments]);
+
+  // Get available branches for selected vendor
+  const availableBranches = useMemo(() => {
+    if (!selectedVendorEmail) return [];
+    return assignments
+      .filter(a => a.vendor_email_identifier === selectedVendorEmail)
+      .map(a => a.branch_name);
+  }, [selectedVendorEmail, assignments]);
+
+  // Get vendor details when vendor is selected
+  const selectedVendor = useMemo(() => {
+    return uniqueVendors.find(v => v.email === selectedVendorEmail);
+  }, [selectedVendorEmail, uniqueVendors]);
+
+  const handleAddRental = async (formData: FormData) => {
+    try {
+      setError(null);
+      if (!selectedVendor) {
+        throw new Error('Please select a vendor');
+      }
+
+      const rentalData: CreateRentalData = {
+        space_name: formData.get('space_name') as string,
+        vendor_bussnies_code: selectedVendor.businessCode,
+        vendor_business_name: selectedVendor.name,
+        owner_business_name: user!.businessCode,
+        branch_name_rental: selectedBranch,
+        monthly_rent: parseFloat(formData.get('monthly_rent') as string),
+        next_payment_date: formData.get('next_payment_date') as string
+      };
+
+      await createRental(rentalData);
+      await loadRentals();
+      setShowAddModal(false);
+    } catch (err) {
+      console.error('Error adding rental:', err);
+      setError(t.errorAddingRental);
+    }
+  };
+
+  const handleUpdatePaymentStatus = async (rental: VendorRental, status: 'paid' | 'pending' | 'overdue') => {
+    try {
+      setError(null);
+      await updateRentalPaymentStatus(rental.rental_id, status);
+      await loadRentals();
+      setSelectedRental(null);
+    } catch (err) {
+      console.error('Error updating payment status:', err);
+      setError(t.errorUpdatingStatus);
+    }
+  };
+
+  const handleDeleteRental = async (rental: VendorRental) => {
+    try {
+      setError(null);
+      await deleteRental(rental.rental_id);
+      await loadRentals();
+      setShowDeleteModal(null);
+    } catch (err) {
+      console.error('Error deleting rental:', err);
+      setError(t.errorDeletingRental);
+    }
+  };
+
+  // Get unique branches from rentals
+  const uniqueBranches = useMemo(() => {
+    const branches = new Set<string>();
+    rentals.forEach(rental => {
+      branches.add(rental.branch_name_rental);
+    });
+    return Array.from(branches).sort();
+  }, [rentals]);
+
+  const filteredRentals = rentals.filter(rental => {
+    const matchesSearch = 
+      rental.space_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      rental.vendor_business_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      rental.branch_name_rental.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = filterStatus === 'all' || rental.payment_status === filterStatus;
+    const matchesBranch = filterBranch === 'all' || rental.branch_name_rental === filterBranch;
+
+    return matchesSearch && matchesStatus && matchesBranch;
+  });
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedRentals = useMemo(() => {
+    return [...filteredRentals].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortField) {
+        case 'space_name':
+          comparison = a.space_name.localeCompare(b.space_name);
+          break;
+        case 'vendor_business_name':
+          comparison = a.vendor_business_name.localeCompare(b.vendor_business_name);
+          break;
+        case 'branch_name_rental':
+          comparison = a.branch_name_rental.localeCompare(b.branch_name_rental);
+          break;
+        case 'monthly_rent':
+          comparison = a.monthly_rent - b.monthly_rent;
+          break;
+        case 'payment_status':
+          comparison = a.payment_status.localeCompare(b.payment_status);
+          break;
+        case 'next_payment_date':
+          comparison = new Date(a.next_payment_date).getTime() - new Date(b.next_payment_date).getTime();
+          break;
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [filteredRentals, sortField, sortDirection]);
+
+  const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+    <th
+      scope="col"
+      className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer group"
+      onClick={() => handleSort(field)}
+      title={sortField === field ? 
+        (sortDirection === 'asc' ? t.sortDesc : t.sortAsc) :
+        t.sortAsc
+      }
+    >
+      <div className="flex items-center justify-end space-x-1 space-x-reverse">
+        <span>{children}</span>
+        <ArrowUpDown className={`w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${
+          sortField === field ? 'opacity-100 text-indigo-500' : 'text-gray-400'
+        }`} />
+      </div>
+    </th>
+  );
+
+  const getDaysUntilDue = (nextPaymentDate: string) => {
+    const today = new Date();
+    const dueDate = new Date(nextPaymentDate);
+    const diffTime = dueDate.getTime() - today.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const getPaymentStatusDisplay = (rental: VendorRental) => {
+    const daysUntilDue = getDaysUntilDue(rental.next_payment_date);
+    
+    if (rental.payment_status === 'overdue') {
       return {
         text: t.paymentOverdue,
         className: 'bg-red-100 text-red-800'
       };
     }
-    if (status.daysUntilDue === 0) {
+    
+    if (daysUntilDue === 0) {
       return {
         text: t.dueToday,
         className: 'bg-yellow-100 text-yellow-800'
       };
     }
-    if (status.daysUntilDue > 0) {
+    
+    if (rental.payment_status === 'paid') {
       return {
-        text: t.dueIn.replace('{days}', status.daysUntilDue.toString()),
+        text: t.paidOnTime,
         className: 'bg-green-100 text-green-800'
       };
     }
+    
     return {
-      text: t.paidOnTime,
-      className: 'bg-green-100 text-green-800'
+      text: t.dueIn.replace('{days}', daysUntilDue.toString()),
+      className: 'bg-yellow-100 text-yellow-800'
     };
   };
 
-  const overduePayments = mockSpaces.filter(space => 
-    space.isOccupied && space.paymentStatus.isOverdue
-  ).length;
-
-  const totalRentedSpaces = mockSpaces.filter(space => space.isOccupied).length;
-  const totalAvailableSpaces = mockSpaces.filter(space => !space.isOccupied).length;
+  const overduePayments = rentals.filter(rental => rental.payment_status === 'overdue').length;
+  const totalRentedSpaces = rentals.length;
+  const totalPaidRentals = rentals.filter(rental => rental.payment_status === 'paid').length;
 
   return (
     <div className="space-y-6" dir={language === 'ar' ? 'rtl' : 'ltr'}>
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">{t.rentalManagement}</h1>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 flex items-center"
+        >
+          <Plus className="w-5 h-5 ml-2" />
+          {t.addRental}
+        </button>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
@@ -184,8 +291,8 @@ export function RentalManagementPage() {
               <Building2 className="w-6 h-6 text-green-600" />
             </div>
             <div className="mr-4">
-              <h3 className="text-lg font-semibold">{t.availableSpaces}</h3>
-              <p className="text-3xl font-bold mt-1">{totalAvailableSpaces}</p>
+              <h3 className="text-lg font-semibold">{t.paidRentals}</h3>
+              <p className="text-3xl font-bold mt-1">{totalPaidRentals}</p>
             </div>
           </div>
         </div>
@@ -203,10 +310,9 @@ export function RentalManagementPage() {
         </div>
       </div>
 
-      {/* Search and Filter */}
       <div className="bg-white rounded-lg shadow">
         <div className="p-4 border-b border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
               <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
               <input
@@ -219,190 +325,329 @@ export function RentalManagementPage() {
               />
             </div>
             <select
+              value={filterBranch}
+              onChange={(e) => setFilterBranch(e.target.value)}
+              className="border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              dir={language === 'ar' ? 'rtl' : 'ltr'}
+            >
+              <option value="all">{t.selectAllBranches}</option>
+              {uniqueBranches.map(branch => (
+                <option key={branch} value={branch}>
+                  {branch}
+                </option>
+              ))}
+            </select>
+            <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
               className="border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               dir={language === 'ar' ? 'rtl' : 'ltr'}
             >
               <option value="all">{t.allSpaces}</option>
-              <option value="occupied">{t.occupiedSpaces}</option>
-              <option value="available">{t.availableSpaces}</option>
+              <option value="paid">{t.paidRentals}</option>
+              <option value="pending">{t.pendingPayments}</option>
+              <option value="overdue">{t.overduePayments}</option>
             </select>
           </div>
         </div>
 
-        {/* Rental Spaces Table */}
+        {error && (
+          <div className="p-4 bg-red-50 border-b border-red-200">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t.space}
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t.vendor}
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t.monthlyRent}
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t.paymentStatus}
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t.nextPaymentDate}
-                </th>
-                <th scope="col" className="relative px-6 py-3">
-                  <span className="sr-only">{t.actions}</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredSpaces.map((space) => {
-                const paymentStatus = getPaymentStatusDisplay(space.paymentStatus);
-                return (
-                  <tr key={space.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{space.name}</div>
-                      <div className="text-sm text-gray-500">{space.location}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {space.currentVendor ? (
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {space.currentVendor.name}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {space.currentVendor.phone}
-                          </div>
+          {isLoading ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">{t.loading}</p>
+            </div>
+          ) : filteredRentals.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">
+                {searchQuery ? t.noSearchResults : t.noRentals}
+              </p>
+            </div>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <SortableHeader field="space_name">
+                    {t.space}
+                  </SortableHeader>
+                  <SortableHeader field="vendor_business_name">
+                    {t.vendor}
+                  </SortableHeader>
+                  <SortableHeader field="branch_name_rental">
+                    {t.branchTitle}
+                  </SortableHeader>
+                  <SortableHeader field="monthly_rent">
+                    {t.monthlyRent}
+                  </SortableHeader>
+                  <SortableHeader field="payment_status">
+                    {t.paymentStatus}
+                  </SortableHeader>
+                  <SortableHeader field="next_payment_date">
+                    {t.nextPaymentDate}
+                  </SortableHeader>
+                  <th scope="col" className="relative px-6 py-3">
+                    <span className="sr-only">{t.actions}</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {sortedRentals.map((rental) => {
+                  const status = getPaymentStatusDisplay(rental);
+                  return (
+                    <tr key={rental.rental_id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {rental.space_name}
                         </div>
-                      ) : (
-                        <span className="text-sm text-gray-500">{t.available}</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {space.monthlyRent} {t.currency}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${paymentStatus.className}`}>
-                        {paymentStatus.text}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(space.paymentStatus.nextPaymentDate).toLocaleDateString(
-                        language === 'ar' ? 'ar' : 'en-US',
-                        { 
-                          year: 'numeric',
-                          month: '2-digit',
-                          day: '2-digit'
-                        }
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      {space.isOccupied && (
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {rental.vendor_business_name}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {rental.branch_name_rental}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {rental.monthly_rent.toFixed(3)} {t.currency}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${status.className}`}>
+                          {status.text}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(rental.next_payment_date).toLocaleDateString(
+                          'en-US',
+                          { year: 'numeric', month: '2-digit', day: '2-digit' }
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
                           onClick={() => {
-                            setSelectedSpaceForPayment(space);
+                            setSelectedRental(rental);
                             setShowPaymentModal(true);
                           }}
                           className="text-indigo-600 hover:text-indigo-900 ml-4"
                         >
-                          {t.addPayment}
+                          {t.updatePayment}
                         </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                        <button
+                          onClick={() => setShowDeleteModal(rental)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          {t.delete}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
       {/* Payment Modal */}
-      {showPaymentModal && selectedSpaceForPayment && (
+      {showPaymentModal && selectedRental && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
             <h2 className="text-xl font-semibold mb-4">
-              {t.addPayment} - {selectedSpaceForPayment.name}
+              {t.updatePayment} - {selectedRental.space_name}
             </h2>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              handleAddPayment(selectedSpaceForPayment.id, new FormData(e.currentTarget));
-            }}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t.paymentAmount} <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="amount"
-                    defaultValue={selectedSpaceForPayment.monthlyRent}
-                    required
-                    className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    dir="ltr"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t.paymentDate} <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="paymentDate"
-                    required
-                    className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t.paymentMethod} <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="paymentMethod"
-                    required
-                    className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    dir={language === 'ar' ? 'rtl' : 'ltr'}
-                  >
-                    <option value="bank">{t.bankTransfer}</option>
-                    <option value="cash">{t.cash}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t.paymentNotes}
-                  </label>
-                  <textarea
-                    name="notes"
-                    rows={3}
-                    className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    dir={language === 'ar' ? 'rtl' : 'ltr'}
-                  />
-                </div>
-
-                <div className="flex justify-end space-x-2 space-x-reverse">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowPaymentModal(false);
-                      setSelectedSpaceForPayment(null);
-                    }}
-                    className="px-4 py-2 text-gray-700 hover:text-gray-900"
-                  >
-                    {t.cancel}
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                  >
-                    {t.confirmPayment}
-                  </button>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t.currentStatus}
+                </label>
+                <div className={`inline-flex px-2 py-1 rounded-full text-sm ${
+                  selectedRental.payment_status === 'paid' ? 'bg-green-100 text-green-800' :
+                  selectedRental.payment_status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-red-100 text-red-800'
+                }`}>
+                  {t[selectedRental.payment_status]}
                 </div>
               </div>
+
+              <div className="space-y-2">
+                <button
+                  onClick={() => handleUpdatePaymentStatus(selectedRental, 'paid')}
+                  className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                >
+                  {t.markAsPaid}
+                </button>
+                <button
+                  onClick={() => handleUpdatePaymentStatus(selectedRental, 'pending')}
+                  className="w-full px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2"
+                >
+                  {t.markAsPending}
+                </button>
+                <button
+                  onClick={() => handleUpdatePaymentStatus(selectedRental, 'overdue')}
+                  className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                >
+                  {t.markAsOverdue}
+                </button>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowPaymentModal(false);
+                    setSelectedRental(null);
+                  }}
+                  className="px-4 py-2 text-gray-700 hover:text-gray-900"
+                >
+                  {t.close}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Rental Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
+            <h2 className="text-xl font-semibold mb-4">{t.addRental}</h2>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              handleAddRental(new FormData(e.currentTarget));
+            }} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t.spaceName} <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="space_name"
+                  required
+                  className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  dir={language === 'ar' ? 'rtl' : 'ltr'}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t.vendor} <span className="text-red-500">*</span></label>
+                <select
+                  value={selectedVendorEmail}
+                  onChange={(e) => {
+                    setSelectedVendorEmail(e.target.value);
+                    setSelectedBranch(''); // Reset branch when vendor changes
+                  }}
+                  required
+                  className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  dir={language === 'ar' ? 'rtl' : 'ltr'}
+                >
+                  <option value="">{t.selectVendor}</option>
+                  {uniqueVendors.map(vendor => (
+                    <option key={vendor.email} value={vendor.email}>
+                      {vendor.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t.branchName} <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                  required
+                  disabled={!selectedVendorEmail}
+                  className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  dir={language === 'ar' ? 'rtl' : 'ltr'}
+                >
+                  <option value="">{t.selectBranch}</option>
+                  {availableBranches.map(branch => (
+                    <option key={branch} value={branch}>
+                      {branch}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t.monthlyRent} <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  name="monthly_rent"
+                  required
+                  min="0"
+                  step="0.001"
+                  className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  dir="ltr"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t.nextPaymentDate} <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  name="next_payment_date"
+                  required
+                  className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  dir="ltr"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2 space-x-reverse">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddModal(false);
+                  }}
+                  className="px-4 py-2 text-gray-700 hover:text-gray-900"
+                >
+                  {t.cancel}
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                >
+                  {t.save}
+                </button>
+              </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h2 className="text-xl font-semibold mb-4">{t.confirmDelete}</h2>
+            <p className="text-gray-600 mb-6">
+              {t.deleteConfirmMessage.replace('{name}', showDeleteModal.space_name)}
+            </p>
+            
+            <div className="flex justify-end space-x-2 space-x-reverse">
+              <button
+                onClick={() => setShowDeleteModal(null)}
+                className="px-4 py-2 text-gray-700 hover:text-gray-900"
+              >
+                {t.cancel}
+              </button>
+              <button
+                onClick={() => handleDeleteRental(showDeleteModal)}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+              >
+                {t.confirmDelete}
+              </button>
+            </div>
           </div>
         </div>
       )}

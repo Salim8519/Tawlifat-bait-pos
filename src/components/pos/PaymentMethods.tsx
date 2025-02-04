@@ -3,7 +3,7 @@ import { CreditCard, Banknote, Globe } from 'lucide-react';
 import { useLanguageStore } from '../../store/useLanguageStore';
 import { posTranslations } from '../../translations/pos';
 
-export type PaymentMethod = 'cash' | 'credit' | 'online';
+export type PaymentMethod = 'cash' | 'card' | 'online';
 
 interface Props {
   selectedMethod: PaymentMethod;
@@ -20,13 +20,13 @@ export function PaymentMethods({ selectedMethod, onMethodChange }: Props) {
     label: string;
   }> = [
     { id: 'cash', icon: Banknote, label: t.cashPayment },
-    { id: 'credit', icon: CreditCard, label: t.creditPayment },
+    { id: 'card', icon: CreditCard, label: t.creditPayment },
     { id: 'online', icon: Globe, label: t.onlinePayment }
   ];
 
   return (
-    <div className="border-t p-4">
-      <h3 className="font-medium mb-3">{t.paymentMethod}</h3>
+    <div className="border-t p-2">
+      <h3 className="font-medium mb-2 text-sm">{t.paymentMethod}</h3>
       <div className="grid grid-cols-3 gap-2">
         {methods.map(({ id, icon: Icon, label }) => (
           <button
@@ -38,8 +38,8 @@ export function PaymentMethods({ selectedMethod, onMethodChange }: Props) {
                 : 'border-gray-200 hover:border-indigo-200'
             }`}
           >
-            <Icon className="w-6 h-6 mb-2" />
-            <span className="text-sm">{label}</span>
+            <Icon className="w-5 h-5 mb-1" />
+            <span className="text-xs">{label}</span>
           </button>
         ))}
       </div>

@@ -24,7 +24,16 @@ export const settingsTranslations = {
     minimumAmount: 'الحد الأدنى للمبلغ',
     minimumAmountHint: 'سيتم تطبيق العمولة فقط على المبيعات التي تتجاوز هذا المبلغ',
     cancel: 'إلغاء',
-    currency: 'ر.ع'
+    currency: 'ر.ع',
+    businessLogo: 'شعار المتجر',
+    uploadLogo: 'رفع شعار المتجر',
+    chooseFile: 'اختر صورة',
+    uploadInstructions: 'PNG, JPG حتى 5MB',
+    uploading: 'جاري الرفع...',
+    errorUploadingLogo: 'حدث خطأ أثناء رفع الشعار',
+    loading: 'جاري التحميل...',
+    errorLoadingSettings: 'حدث خطأ أثناء تحميل الإعدادات',
+    errorSavingSettings: 'حدث خطأ أثناء حفظ الإعدادات'
   },
   en: {
     settings: 'Settings',
@@ -51,6 +60,15 @@ export const settingsTranslations = {
     minimumAmount: 'Minimum Amount',
     minimumAmountHint: 'Commission will only apply to sales above this amount',
     cancel: 'Cancel',
-    currency: 'OMR'
+    currency: 'OMR',
+    businessLogo: 'Business Logo',
+    uploadLogo: 'Upload Business Logo',
+    chooseFile: 'Choose file',
+    uploadInstructions: 'PNG, JPG up to 5MB',
+    uploading: 'Uploading...',
+    errorUploadingLogo: 'Error uploading logo',
+    loading: 'Loading...',
+    errorLoadingSettings: 'Error loading settings',
+    errorSavingSettings: 'Error saving settings'
   }
 };

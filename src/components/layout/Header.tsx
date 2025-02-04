@@ -1,12 +1,21 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useAuth } from '../../hooks/useAuth';
 import { LogOut, User } from 'lucide-react';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { useLanguageStore } from '../../store/useLanguageStore';
 
 export function Header() {
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
+  const { signOut } = useAuth();
   const { language } = useLanguageStore();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login');
+  };
 
   return (
     <header className="bg-white shadow-sm">
@@ -24,7 +33,7 @@ export function Header() {
           </div>
           
           <button
-            onClick={logout}
+            onClick={handleLogout}
             className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
           >
             <LogOut className="w-4 h-4 ml-2" />

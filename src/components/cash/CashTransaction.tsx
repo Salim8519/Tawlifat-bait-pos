@@ -1,32 +1,45 @@
 import React, { useState } from 'react';
 import { useLanguageStore } from '../../store/useLanguageStore';
 import { cashDrawerTranslations } from '../../translations/cashDrawer';
-import { useCashDrawerStore } from '../../store/useCashDrawerStore';
 
-export function CashTransaction() {
+interface Props {
+  onTransaction: (type: 'deposit' | 'withdrawal', amount: number, reason: string) => Promise<void>;
+}
+
+export function CashTransaction({ onTransaction }: Props) {
   const { language } = useLanguageStore();
   const t = cashDrawerTranslations[language];
-  const { addTransaction } = useCashDrawerStore();
 
   const [showForm, setShowForm] = useState(false);
   const [type, setType] = useState<'deposit' | 'withdrawal'>('deposit');
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !reason) return;
 
-    addTransaction({
-      type,
-      amount: parseFloat(amount),
-      reason,
-      date: new Date().toISOString()
-    });
+    try {
+      setIsProcessing(true);
+      setError(null);
+      
+      await onTransaction(
+        type,
+        parseFloat(amount),
+        reason
+      );
 
-    setShowForm(false);
-    setAmount('');
-    setReason('');
+      setShowForm(false);
+      setAmount('');
+      setReason('');
+    } catch (err) {
+      console.error('Error processing transaction:', err);
+      setError(t.errorProcessingTransaction);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -87,20 +100,28 @@ export function CashTransaction() {
                   dir={language === 'ar' ? 'rtl' : 'ltr'}
                 />
               </div>
+            
+            {error && (
+              <div className="bg-red-50 text-red-600 p-2 rounded-md text-sm">
+                {error}
+              </div>
+            )}
 
               <div className="flex justify-end space-x-2 space-x-reverse">
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
                   className="px-4 py-2 text-gray-700 hover:text-gray-900"
+                  disabled={isProcessing}
                 >
                   {t.cancel}
                 </button>
                 <button
                   type="submit"
+                  disabled={isProcessing}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 >
-                  {t.confirm}
+                  {isProcessing ? t.processing : t.confirm}
                 </button>
               </div>
             </form>

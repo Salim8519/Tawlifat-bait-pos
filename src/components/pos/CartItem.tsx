@@ -1,58 +1,100 @@
 import React, { useState } from 'react';
-import { Trash2, MessageSquare } from 'lucide-react';
+import { Trash2, AlertCircle } from 'lucide-react';
 import { useLanguageStore } from '../../store/useLanguageStore';
 import { posTranslations } from '../../translations/pos';
 import type { CartItem as CartItemType } from '../../types/pos';
 
 interface CartItemProps {
   item: CartItemType;
+  availableQuantity: number;
+  isTrackable: boolean;
   onUpdateQuantity: (id: string, quantity: number) => void;
-  onUpdateNotes: (id: string, notes: string) => void;
   onRemove: (id: string) => void;
 }
 
-export function CartItem({ item, onUpdateQuantity, onUpdateNotes, onRemove }: CartItemProps) {
+export function CartItem({ 
+  item, 
+  availableQuantity, 
+  isTrackable, 
+  onUpdateQuantity, 
+  onRemove 
+}: CartItemProps) {
   const { language } = useLanguageStore();
   const t = posTranslations[language];
-  const [showNotes, setShowNotes] = useState(Boolean(item.notes));
+  const [showError, setShowError] = useState(false);
+
+  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value, 10);
+    if (!isNaN(value) && value >= 0) {
+      if (!isTrackable && value > availableQuantity) {
+        setShowError(true);
+        setTimeout(() => setShowError(false), 3000);
+        return;
+      }
+      onUpdateQuantity(item.id, value);
+    }
+  };
+
+  const handleIncrement = () => {
+    if (!isTrackable && item.quantity >= availableQuantity) {
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
+      return;
+    }
+    onUpdateQuantity(item.id, item.quantity + 1);
+  };
 
   return (
-    <div className="border-b last:border-b-0 py-4" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+    <div className="border-b last:border-b-0 py-2" dir={language === 'ar' ? 'rtl' : 'ltr'}>
       <div className="flex justify-between">
         <div className="flex-1">
-          <h3 className="font-medium">{item.nameAr}</h3>
-          <p className="text-sm text-gray-500">{item.price.toFixed(2)} {t.currency}</p>
-          {item.notes && !showNotes && (
-            <div className="mt-1 text-xs text-gray-500 bg-gray-50 p-2 rounded-md">
-              <p className="line-clamp-2">{item.notes}</p>
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-gray-900">{item.nameAr}</span>
+            <span className="text-sm text-gray-500">
+              {item.price.toFixed(3)} {t.currency}
+            </span>
+          </div>
+          {!isTrackable && (
+            <p className="text-xs text-gray-500 mt-1">
+              {t.available}: {availableQuantity}
+            </p>
+          )}
+          {showError && !isTrackable && (
+            <div className="flex items-center text-xs text-red-600 mt-1">
+              <AlertCircle className="w-3 h-3 mr-1" />
+              {t.insufficientQuantity}
             </div>
           )}
         </div>
-        <div className="flex items-start space-x-2 space-x-reverse mr-4">
+        <div className="flex items-start space-x-2 space-x-reverse mr-2">
           <div className="flex items-center space-x-1 space-x-reverse">
             <button
               onClick={() => onUpdateQuantity(item.id, Math.max(0, item.quantity - 1))}
-              className="w-6 h-6 flex items-center justify-center border rounded hover:bg-gray-100"
+              className="w-7 h-7 flex items-center justify-center border rounded hover:bg-gray-100 text-lg font-medium"
             >
               -
             </button>
-            <span className="w-8 text-center">{item.quantity}</span>
+            <input
+              type="number"
+              min="0"
+              max={!isTrackable ? availableQuantity : undefined}
+              value={item.quantity}
+              onChange={handleQuantityChange}
+              className={`w-12 text-center text-lg font-medium border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                !isTrackable && item.quantity > availableQuantity ? 'border-red-500' : ''
+              }`}
+              dir="ltr"
+            />
             <button
-              onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-              className="w-6 h-6 flex items-center justify-center border rounded hover:bg-gray-100"
+              onClick={handleIncrement}
+              className={`w-7 h-7 flex items-center justify-center border rounded hover:bg-gray-100 text-lg font-medium ${
+                !isTrackable && item.quantity >= availableQuantity ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              disabled={!isTrackable && item.quantity >= availableQuantity}
             >
               +
             </button>
           </div>
-          <button
-            onClick={() => setShowNotes(!showNotes)}
-            className={`text-gray-500 hover:text-gray-700 ${
-              showNotes || item.notes ? 'bg-gray-100 rounded-full p-1' : ''
-            } ${item.notes ? 'text-indigo-600' : ''}`}
-            title={item.notes ? t.editNotes : t.addNotes}
-          >
-            <MessageSquare className="w-5 h-5" />
-          </button>
           <button
             onClick={() => onRemove(item.id)}
             className="text-red-500 hover:text-red-700"
@@ -62,19 +104,6 @@ export function CartItem({ item, onUpdateQuantity, onUpdateNotes, onRemove }: Ca
           </button>
         </div>
       </div>
-      
-      {showNotes && (
-        <div className="mt-2">
-          <textarea
-            value={item.notes ?? ''}
-            onChange={(e) => onUpdateNotes(item.id, e.target.value)}
-            placeholder={t.addNotes}
-            className="w-full p-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm resize-none"
-            rows={2}
-            dir={language === 'ar' ? 'rtl' : 'ltr'}
-          />
-        </div>
-      )}
     </div>
   );
 }

@@ -1,0 +1,44 @@
+[
+  {
+    "column_name": "assignment_id",
+    "data_type": "integer",
+    "is_nullable": "NO",
+    "column_default": "nextval('vendor_assignments_assignment_id_seq'::regclass)"
+  },
+  {
+    "column_name": "vendor_business_code",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "column_name": "owner_business_code",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "column_name": "owner_business_name",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "column_name": "branch_name",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "column_name": "date_of_assignment",
+    "data_type": "timestamp without time zone",
+    "is_nullable": "NO",
+    "column_default": "CURRENT_TIMESTAMP"
+  },
+  {
+    "column_name": "vendor_email_identifier",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  }
+]
