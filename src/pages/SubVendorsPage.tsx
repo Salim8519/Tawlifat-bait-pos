@@ -42,6 +42,11 @@ export function SubVendorsPage() {
   });
   const [error, setError] = useState<string | null>(null);
   const [removingVendor, setRemovingVendor] = useState<VendorAssignment | null>(null);
+  const [addingBranchToVendor, setAddingBranchToVendor] = useState<{
+    email: string;
+    businessCode: string;
+    businessName: string;
+  } | null>(null);
 
   useEffect(() => {
     if (user?.businessCode) {
@@ -124,6 +129,34 @@ export function SubVendorsPage() {
       setRemovingVendor(null);
     } catch (error) {
       console.error('Error removing vendor:', error);
+    }
+  };
+
+  const handleAddBranchToVendor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    
+    if (!selectedBranch) {
+      setError(t.selectBranchFirst);
+      return;
+    }
+
+    try {
+      await assignVendor({
+        vendor_business_code: addingBranchToVendor!.businessCode,
+        owner_business_code: user!.businessCode,
+        owner_business_name: '',
+        branch_name: selectedBranch,
+        vendor_email_identifier: addingBranchToVendor!.email
+      });
+
+      await loadVendors();
+      setAddingBranchToVendor(null);
+      setSelectedBranch('');
+      setError(null);
+    } catch (error) {
+      console.error('Error adding branch to vendor:', error);
+      setError(t.errorAddingBranch);
     }
   };
 
@@ -241,6 +274,22 @@ export function SubVendorsPage() {
                               <p className="text-sm text-gray-900 mt-1">
                                 {assignments[0].profile?.phone_number || '-'}
                               </p>
+                            </div>
+                            <div className="text-right">
+                              <button
+                                onClick={() => {
+                                  setAddingBranchToVendor({
+                                    email: assignments[0].vendor_email_identifier,
+                                    businessCode: assignments[0].vendor_business_code,
+                                    businessName: assignments[0].profile?.["vendor_business _name"] || ''
+                                  });
+                                  setSelectedBranch('');
+                                }}
+                                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                              >
+                                <Plus className="w-4 h-4 mr-1" />
+                                {t.addBranch}
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -445,6 +494,97 @@ export function SubVendorsPage() {
                   className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 >
                   {showNewVendorForm ? t.createAndAssign : t.add}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Branch to Vendor Modal */}
+      {addingBranchToVendor && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h2 className="text-xl font-semibold mb-4">
+              {t.addBranchToVendor}
+            </h2>
+            
+            <form onSubmit={handleAddBranchToVendor} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t.vendorBusinessName}
+                </label>
+                <p className="text-sm text-gray-900">
+                  {addingBranchToVendor.businessName}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t.vendorEmail}
+                </label>
+                <p className="text-sm text-gray-900">
+                  {addingBranchToVendor.email}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t.branch} <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  dir={language === 'ar' ? 'rtl' : 'ltr'}
+                >
+                  <option value="">{t.selectBranch}</option>
+                  {branches
+                    .filter(branch => branch.is_active && 
+                      !vendors.some(v => 
+                        v.vendor_business_code === addingBranchToVendor.businessCode && 
+                        v.branch_name === branch.branch_name
+                      )
+                    )
+                    .map(branch => (
+                      <option key={branch.branch_id} value={branch.branch_name}>
+                        {branch.branch_name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {error && (
+                <div className="rounded-md bg-red-50 p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <AlertTriangle className="h-5 w-5 text-red-400" />
+                    </div>
+                    <div className="mr-3">
+                      <p className="text-sm text-red-700">{error}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end space-x-2 space-x-reverse">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddingBranchToVendor(null);
+                    setSelectedBranch('');
+                    setError(null);
+                  }}
+                  className="px-4 py-2 text-gray-700 hover:text-gray-900"
+                >
+                  {t.cancel}
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                >
+                  {t.add}
                 </button>
               </div>
             </form>

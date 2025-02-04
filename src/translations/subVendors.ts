@@ -47,7 +47,11 @@ export const subVendorTranslations = {
     vendorNotFound: 'لم يتم العثور على المورد بهذا البريد الإلكتروني',
     errorAddingVendor: 'حدث خطأ أثناء إضافة المورد',
     product: 'منتج',
-    currency: 'ر.ع'
+    currency: 'ر.ع',
+    addBranch: 'إضافة فرع',
+    addBranchToVendor: 'إضافة فرع للمورد',
+    errorAddingBranch: 'حدث خطأ أثناء إضافة الفرع',
+    selectBranchFirst: 'الرجاء اختيار الفرع أولاً',
   },
   en: {
     subVendors: 'Vendor Management',
@@ -97,6 +101,10 @@ export const subVendorTranslations = {
     vendorNotFound: 'No vendor found with this email',
     errorAddingVendor: 'Error adding vendor',
     product: 'Product',
-    currency: 'OMR'
+    currency: 'OMR',
+    addBranch: 'Add Branch',
+    addBranchToVendor: 'Add Branch to Vendor',
+    errorAddingBranch: 'Error adding branch',
+    selectBranchFirst: 'Please select a branch first',
   }
 };
