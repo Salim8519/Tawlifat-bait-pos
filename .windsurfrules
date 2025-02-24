@@ -1,0 +1,166 @@
+
+
+Complete Development Instructions
+Core Principles
+Create professional, beautiful, and unique designs
+Build fully featured components worthy for production
+Provide direct, helpful, and concise answers
+Follow best practices for security, performance, and accessibility
+Environment Constraints
+WebContainer Environment
+In-browser Node.js runtime emulating Linux
+Browser-native code only (JS, WebAssembly)
+No native binaries
+Python limited to standard library
+No C/C++ or Rust compilation
+No Git availability
+Available Shell Commands
+Basic: cat, chmod, cp, echo, hostname, kill, ln, ls, mkdir, mv, ps, pwd, rm, rmdir
+Utility: xxd, alias, cd, clear, curl, env, false, getconf, head, sort, tail, touch
+Development: node, python, python3, wasm
+Other: true, uptime, which, code, jq, loadenv, xdg-open, command, exit, export, source
+Technology Stack
+Core Technologies
+Vite for web servers
+Node.js scripts over shell scripts
+React with TypeScript as primary framework
+Tailwind CSS for styling
+Lucide React for icons (no additional UI libraries unless requested)
+Supabase for databases by default
+Project Structure
+/home/project/
+├── src/
+│   ├── components/
+│   │   ├── common/         # Reusable UI components
+│   │   ├── features/       # Feature-specific components
+│   │   └── layout/         # Layout components
+│   ├── hooks/             # Custom React hooks
+│   ├── lib/               # Utility functions
+│   ├── types/             # TypeScript types
+│   ├── styles/            # Global styles
+│   ├── context/           # React contexts
+│   ├── services/          # API integrations
+│   ├── constants/         # App constants
+│   └── utils/             # Helper functions
+├── public/               # Static assets
+└── supabase/
+    └── migrations/       # Database migrations
+File Naming
+kebab-case for files: user-profile.tsx
+PascalCase for components: UserProfile.tsx
+camelCase for utilities: formatDate.ts
+Variants use dots: Button.primary.tsx
+Tests: [name].test.ts
+Component Structure
+/components/features/user/
+├── UserProfile/
+│   ├── index.tsx           # Main export
+│   ├── UserProfile.tsx     # Implementation
+│   ├── UserProfile.test.tsx
+│   ├── useUserProfile.ts   # Component hook
+│   └── types.ts           # Types
+
+File Organization
+Create small, focused files
+Break down large components
+Single responsibility per file
+Extract reusable logic
+Maintain consistent structure
+Database Management
+Supabase Guidelines
+Database setup is automatic
+Focus on schema and storage
+Environment variables in .env
+Never modify Supabase config
+Critical Requirements
+Preserve data integrity
+No destructive operations
+No explicit transactions
+New migrations for changes
+Enable row level security
+Add CRUD policies
+Migration Standards
+Create in /supabase/migrations
+Use descriptive names
+Include documentation
+Set appropriate defaults
+Follow safe practices
+Security
+Authentication
+Use Supabase auth
+Proper session management
+Follow security practices
+Enable access controls
+No custom auth systems
+Data Protection
+Enable row-level security
+Create proper policies
+Validate permissions
+Prevent unauthorized access
+Sanitize inputs
+Development Best Practices
+Code Quality
+Follow type safety
+Implement error handling
+Add documentation
+Follow security practices
+Optimize performance
+Testing
+Use Vitest framework
+Write comprehensive tests
+Cover edge cases
+Test error scenarios
+Follow TDD practices
+Component Guidelines
+Keep components small
+Extract complex logic
+Use proper types
+Follow React best practices
+Implement error boundaries
+Performance
+Minimize bundle size
+Implement code splitting
+Optimize re-renders
+Cache appropriately
+Follow React guidelines
+
+UI/UX Standards
+Design Requirements
+Professional and unique
+Production quality
+Responsive layouts
+Accessible interfaces
+Consistent styling
+Asset Management
+Use Lucide React icons
+Valid Unsplash photo URLs
+No image downloads
+Optimize loading
+Follow best practices
+Accessibility
+Standards
+Follow WCAG guidelines
+Use ARIA attributes
+Enable keyboard navigation
+Provide alt text
+Test with screen readers
+Error Handling
+Strategy
+Implement boundaries
+Handle edge cases
+User-friendly messages
+Proper logging
+Implement fallbacks
+Documentation
+Code Documentation
+JSDoc for APIs
+Document props
+Explain complex logic
+Document types
+Include examples
+File Documentation
+State purpose
+List exports
+Note dependencies
+Add instructions
+Include maintainer info

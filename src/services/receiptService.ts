@@ -59,7 +59,7 @@ async function generateReceiptText(
   // Get business settings for header and footer
   const { data: settings, error } = await supabase
     .from('business_settings')
-    .select('receipt_header, receipt_footer, business_name')
+    .select('receipt_header, receipt_footer')
     .eq('business_code_', data.business_code)
     .single();
 
@@ -69,7 +69,7 @@ async function generateReceiptText(
 
   const headerLines = [
     '='.repeat(40),
-    settings?.business_name?.toUpperCase() || '',
+    data.branch_name?.toUpperCase() || '',  
     settings?.receipt_header || '',
     '='.repeat(40),
     '',

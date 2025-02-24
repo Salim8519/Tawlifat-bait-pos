@@ -7,6 +7,7 @@ interface User {
   name: string;
   role: string;
   businessCode: string;
+  main_branch?: string;
 }
 
 interface AuthState {

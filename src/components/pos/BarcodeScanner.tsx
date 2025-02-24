@@ -9,6 +9,11 @@ interface BarcodeScannerProps {
   onPartialMatch?: (partialBarcode: string) => void;
 }
 
+const MIN_SCANNER_TIMEOUT = 20;  // Fastest scanner timeout (ms)
+const MAX_SCANNER_TIMEOUT = 100; // Slowest scanner timeout (ms)
+const MANUAL_INPUT_TIMEOUT = 1000; // Manual input timeout (ms)
+const SCANNER_SPEED_THRESHOLD = 50; // Time between keypresses to detect scanner (ms)
+
 export function BarcodeScanner({ onScan, onPartialMatch }: BarcodeScannerProps) {
   const { language } = useLanguageStore();
   const t = posTranslations[language];
@@ -17,21 +22,51 @@ export function BarcodeScanner({ onScan, onPartialMatch }: BarcodeScannerProps) 
   const inputRef = useRef<HTMLInputElement>(null);
   const lastKeyPressTime = useRef<number>(0);
   const focusInterval = useRef<number | null>(null);
-  const barcodeBuffer = useRef<string>(''); // Buffer for fast input
+  const barcodeBuffer = useRef<string>('');
   const bufferTimeout = useRef<number | null>(null);
+  const isManualInput = useRef<boolean>(false);
+  const scannerSpeedHistory = useRef<number[]>([]);
+  const lastProcessedBarcode = useRef<string>('');
+  const lastProcessedTime = useRef<number>(0);
+
+  // Calculate adaptive scanner timeout based on speed history
+  const calculateScannerTimeout = () => {
+    if (scannerSpeedHistory.current.length === 0) return MAX_SCANNER_TIMEOUT;
+    
+    // Calculate average speed from last 5 scans
+    const recentSpeeds = scannerSpeedHistory.current.slice(-5);
+    const avgSpeed = recentSpeeds.reduce((a, b) => a + b, 0) / recentSpeeds.length;
+    
+    // Add 20ms buffer to the average speed, but keep within bounds
+    return Math.min(Math.max(avgSpeed + 20, MIN_SCANNER_TIMEOUT), MAX_SCANNER_TIMEOUT);
+  };
 
   // Function to handle barcode submission
-  const handleBarcodeSubmit = (code: string) => {
+  const handleBarcodeSubmit = (code: string, isManual: boolean = false) => {
+    const now = Date.now();
+    
+    // Prevent duplicate submissions within the scanner timeout period
+    if (code === lastProcessedBarcode.current && 
+        now - lastProcessedTime.current < calculateScannerTimeout()) {
+      console.log('Preventing duplicate scan:', code);
+      return;
+    }
+
     if (code.length === 7) {
-      playBeep(); // Play beep sound when valid barcode is scanned
+      playBeep();
+      lastProcessedBarcode.current = code;
+      lastProcessedTime.current = now;
       onScan(code);
-      setBarcode(''); // Clear immediately
-      barcodeBuffer.current = ''; // Clear buffer
+      
+      // Clear the input and buffer
+      setBarcode('');
+      barcodeBuffer.current = '';
+      isManualInput.current = false;
     }
   };
 
   // Function to process buffered input
-  const processBuffer = () => {
+  const processBuffer = (force: boolean = false) => {
     if (bufferTimeout.current) {
       window.clearTimeout(bufferTimeout.current);
       bufferTimeout.current = null;
@@ -39,28 +74,28 @@ export function BarcodeScanner({ onScan, onPartialMatch }: BarcodeScannerProps) 
 
     const code = barcodeBuffer.current;
     if (code.length === 7) {
-      handleBarcodeSubmit(code);
+      handleBarcodeSubmit(code, isManualInput.current);
     } else if (code.length > 7) {
       // If we somehow got more than 7 digits, take the last 7
-      handleBarcodeSubmit(code.slice(-7));
+      handleBarcodeSubmit(code.slice(-7), isManualInput.current);
+    } else if (force && code.length > 0) {
+      // Only clear partial input if forced (e.g., on blur or toggle)
+      setBarcode('');
+      barcodeBuffer.current = '';
     }
-    barcodeBuffer.current = '';
   };
 
   // Maintain focus when scanner is active
   useEffect(() => {
     if (isListening) {
-      // Initial focus
       inputRef.current?.focus();
 
-      // Set up interval to check and restore focus
       focusInterval.current = window.setInterval(() => {
         if (document.activeElement !== inputRef.current) {
           inputRef.current?.focus();
         }
       }, 100);
 
-      // Handle clicks anywhere on the document
       const handleClick = (e: MouseEvent) => {
         if (isListening) {
           e.preventDefault();
@@ -88,36 +123,49 @@ export function BarcodeScanner({ onScan, onPartialMatch }: BarcodeScannerProps) 
 
       const currentTime = Date.now();
       const timeSinceLastPress = currentTime - lastKeyPressTime.current;
+      
+      // Update scanner speed history for hardware scanners
+      if (timeSinceLastPress < SCANNER_SPEED_THRESHOLD) {
+        scannerSpeedHistory.current.push(timeSinceLastPress);
+        // Keep only last 10 measurements
+        if (scannerSpeedHistory.current.length > 10) {
+          scannerSpeedHistory.current.shift();
+        }
+      }
+      
+      // Detect if this is likely a scanner (very fast input) or manual input
+      isManualInput.current = timeSinceLastPress > SCANNER_SPEED_THRESHOLD;
       lastKeyPressTime.current = currentTime;
 
       // Handle numeric input
       if (/\d/.test(e.key) && e.key.length === 1) {
-        e.preventDefault(); // Prevent default to avoid double input
+        e.preventDefault();
         
-        // Add to buffer
         barcodeBuffer.current += e.key;
-        
-        // Update display
         setBarcode(barcodeBuffer.current);
 
-        // After 5 characters, start looking for matches
         if (barcodeBuffer.current.length >= 5) {
           onPartialMatch?.(barcodeBuffer.current);
         }
 
-        // Reset timeout for processing buffer
+        // Clear any existing timeout
         if (bufferTimeout.current) {
           window.clearTimeout(bufferTimeout.current);
         }
-        // Reduced timeout to 20ms for faster processing
-        bufferTimeout.current = window.setTimeout(processBuffer, 20);
+
+        // Set timeout based on input type and scanner speed
+        const timeoutDuration = isManualInput.current 
+          ? MANUAL_INPUT_TIMEOUT 
+          : calculateScannerTimeout();
+          
+        bufferTimeout.current = window.setTimeout(() => processBuffer(), timeoutDuration);
       }
 
       // Handle Enter key
       if (e.key === 'Enter') {
         e.preventDefault();
         if (barcodeBuffer.current.length > 0) {
-          processBuffer(); // Process whatever is in the buffer immediately
+          processBuffer();
         }
       }
     };
@@ -126,30 +174,45 @@ export function BarcodeScanner({ onScan, onPartialMatch }: BarcodeScannerProps) 
     return () => window.removeEventListener('keydown', handleKeyPress, true);
   }, [isListening, onScan, onPartialMatch]);
 
+  // Handle manual input through onChange
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value.replace(/\D/g, '').slice(0, 7); // Only allow digits, max 7
+    if (isListening) return; // Ignore onChange when scanner is active
+
+    const newValue = e.target.value.replace(/\D/g, '').slice(0, 7);
+    isManualInput.current = true;
     
-    // Update both buffer and display
     barcodeBuffer.current = newValue;
     setBarcode(newValue);
     
-    // Start looking for matches after 5 characters
     if (newValue.length >= 5) {
       onPartialMatch?.(newValue);
     }
     
-    // Process immediately if we have 7 digits
     if (newValue.length === 7) {
-      processBuffer();
+      // Small delay for manual input to prevent double submission
+      setTimeout(() => processBuffer(), 100);
     }
   };
 
   const toggleScanner = () => {
+    // Process any pending input before toggling
+    processBuffer(true);
+    
     setIsListening(!isListening);
-    setBarcode(''); // Clear barcode when toggling
-    barcodeBuffer.current = ''; // Clear buffer when toggling
+    setBarcode('');
+    barcodeBuffer.current = '';
+    isManualInput.current = false;
+    scannerSpeedHistory.current = []; // Reset scanner speed history
+    
     if (!isListening) {
       inputRef.current?.focus();
+    }
+  };
+
+  // Handle input blur
+  const handleBlur = () => {
+    if (!isListening) {
+      processBuffer(true); // Force process any pending input
     }
   };
 
@@ -162,12 +225,13 @@ export function BarcodeScanner({ onScan, onPartialMatch }: BarcodeScannerProps) 
           maxLength={7}
           value={barcode}
           onChange={handleInputChange}
+          onBlur={handleBlur}
           placeholder={isListening ? t.readyToScan : t.enterManually}
           className={`flex-1 pr-10 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
             isListening ? 'bg-green-50' : ''
           }`}
           dir={language === 'ar' ? 'rtl' : 'ltr'}
-          readOnly={isListening} // Make input readonly when scanner is active
+          readOnly={isListening}
         />
         <button
           onClick={toggleScanner}

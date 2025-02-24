@@ -1,12 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { createClient } from '@supabase/supabase-js';
 import type { Profile } from '../types/profile';
-
-// Create a supabase client with service role for admin operations
-const supabaseAdmin = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
-);
 
 export type WorkingStatus = 'working' | 'vacation' | 'sick' | 'absent' | 'suspended';
 
@@ -48,54 +41,45 @@ export async function getManagers(businessCode: string): Promise<ManagerProfile[
  * Create a new manager with auth and profile
  */
 export async function createManager(data: CreateManagerData): Promise<ManagerProfile> {
-  let userId: string;
-
   try {
-    // First check if user exists
-    const { data: userData } = await supabaseAdmin.auth.admin.listUsers();
-    const existingUser = userData.users.find(u => u.email === data.email);
+    // Get business name from creator's profile
+    const { data: creatorProfile, error: creatorError } = await supabase
+      .from('profiles')
+      .select('business_name')
+      .eq('business_code', data.business_code)
+      .eq('role', 'owner')
+      .single();
 
-    if (existingUser) {
-      // User exists, update their metadata and password
-      userId = existingUser.id;
-      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-        userId,
-        {
-          password: data.password,
-          user_metadata: {
-            role: 'manager',
-            business_code: data.business_code
-          }
-        }
-      );
+    if (creatorError) {
+      console.error('Error fetching business name:', creatorError);
+      throw creatorError;
+    }
 
-      if (updateError) {
-        throw updateError;
-      }
-    } else {
-      // Create new auth user
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-        email: data.email,
-        password: data.password,
-        email_confirm: true,
-        user_metadata: {
+    // Create new auth user using public API
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      email: data.email,
+      password: data.password,
+      options: {
+        data: {
           role: 'manager',
           business_code: data.business_code
         }
-      });
-
-      if (authError) {
-        throw authError;
       }
+    });
 
-      userId = authData.user.id;
+    if (signUpError) {
+      throw signUpError;
     }
 
-    // Create or update profile
-    const { data: profile, error: profileError } = await supabaseAdmin
+    if (!authData.user) {
+      throw new Error('Failed to create auth user');
+    }
+
+    // Create profile - RLS policies will ensure proper access
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .upsert({
-        user_id: userId,
+      .insert({
+        user_id: authData.user.id,
         full_name: data.full_name,
         his_email: data.email,
         main_branch: data.main_branch,
@@ -103,12 +87,14 @@ export async function createManager(data: CreateManagerData): Promise<ManagerPro
         salary: data.salary,
         role: 'manager',
         business_code: data.business_code,
-        working_status: data.working_status
+        working_status: data.working_status,
+        business_name: creatorProfile.business_name // Add business name from creator's profile
       })
       .select()
       .single();
 
     if (profileError) {
+      console.error('Error creating manager profile:', profileError);
       throw profileError;
     }
 
@@ -166,49 +152,39 @@ export async function updateManagerStatus(
 }
 
 /**
- * Delete manager from profiles table and auth
+ * Delete manager from profiles table
+ * Note: Auth user will remain but won't have access to any data
  */
 export async function deleteManager(userId: string): Promise<boolean> {
   try {
-    // First verify this is actually a manager
-    const { data: profile, error: checkError } = await supabase
+    // First verify this is actually a manager from our business
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, business_code')
       .eq('user_id', userId)
       .single();
 
-    if (checkError) {
-      console.error('Error checking manager profile:', checkError);
-      throw checkError;
-    }
-
-    if (profile?.role !== 'manager') {
-      throw new Error('User is not a manager');
-    }
-
-    // Delete specific manager profile
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .delete()
-      .match({
-        user_id: userId,
-        role: 'manager'
-      });
-
     if (profileError) {
-      console.error('Error deleting manager profile:', profileError);
+      console.error('Error fetching manager profile:', profileError);
       throw profileError;
     }
 
-    // Delete the user from auth.users using admin client
-    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(
-      userId
-    );
-
-    if (authError) {
-      console.error('Error deleting auth user:', authError);
-      throw authError;
+    if (!profile || profile.role !== 'manager') {
+      throw new Error('User is not a manager');
     }
+
+    // Delete the profile - RLS policies will ensure only managers from the same business can be deleted
+    const { error: deleteError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('user_id', userId)
+      .eq('role', 'manager');
+
+    if (deleteError) {
+      console.error('Error deleting manager profile:', deleteError);
+      throw deleteError;
+    }
+
     return true;
   } catch (error) {
     console.error('Error in deleteManager:', error);

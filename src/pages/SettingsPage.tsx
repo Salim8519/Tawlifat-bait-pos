@@ -81,7 +81,8 @@ export function SettingsPage() {
       default_commission_rate: settings.default_commission_rate,
       minimum_commission_amount: settings.minimum_commission_amount,
       tax_enabled: settings.tax_enabled,
-      tax_rate: settings.tax_rate
+      tax_rate: settings.tax_rate,
+      extra_tax_monthly_on_vendors: settings.extra_tax_monthly_on_vendors
     };
     
     try {
@@ -352,6 +353,42 @@ export function SettingsPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Monthly Vendor Tax Settings */}
+        <div className="p-6">
+          <div className="flex items-center space-x-3 space-x-reverse mb-4">
+            <Percent className="w-5 h-5 text-indigo-600" />
+            <h2 className="text-lg font-medium">{t.monthlyVendorTax}</h2>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-base font-medium text-gray-700 mb-2">
+                {t.monthlyVendorTax}
+              </h3>
+              <div className="relative mt-1 rounded-md shadow-sm w-48">
+                <input
+                  type="number"
+                  value={settings.extra_tax_monthly_on_vendors || ''}
+                  onChange={(e) => setSettings({
+                    ...settings,
+                    extra_tax_monthly_on_vendors: parseFloat(e.target.value)
+                  })}
+                  className="block w-full rounded-md border-gray-300 pl-3 pr-10 py-2 text-base focus:border-blue-500 focus:ring-blue-500"
+                  placeholder="0.00"
+                  step="0.1"
+                  min="0"
+                />
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                  <span className="text-gray-500 text-base">%</span>
+                </div>
+              </div>
+              <p className="mt-2 text-sm text-gray-500">
+                {t.monthlyVendorTaxDescription}
+              </p>
+            </div>
           </div>
         </div>
       </div>

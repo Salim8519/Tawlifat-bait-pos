@@ -47,8 +47,9 @@ export function getRedirectPath(profile: Profile): string {
   console.log('Determining redirect path for role:', role);
 
   switch (role) {
+    case 'super_admin':
     case 'admin':
-      return '/admin/dashboard';
+      return '/dashboard';  // Both admin roles get the same admin interface
     case 'owner':
       return '/dashboard';
     case 'cashier':

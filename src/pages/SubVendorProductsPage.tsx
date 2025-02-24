@@ -26,6 +26,8 @@ export function SubVendorProductsPage() {
   const [filterType, setFilterType] = useState<'all' | 'food' | 'non-food'>('all');
   const [error, setError] = useState<string | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  const [sortField, setSortField] = useState<'product_name' | 'business' | 'branch' | 'type' | 'price' | 'quantity' | 'status' | 'production_date' | 'expiry_date'>('product_name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     if (user?.businessCode) {
@@ -132,6 +134,62 @@ export function SubVendorProductsPage() {
     const matchesType = filterType === 'all' || product.type === filterType;
     return matchesSearch && matchesType;
   });
+
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    const direction = sortDirection === 'asc' ? 1 : -1;
+    switch (sortField) {
+      case 'product_name':
+        return direction * a.product_name.localeCompare(b.product_name);
+      case 'business':
+        const aBusinessName = assignments.find(as => as.owner_business_code === a.business_code_of_owner)?.owner_business_name || '';
+        const bBusinessName = assignments.find(as => as.owner_business_code === b.business_code_of_owner)?.owner_business_name || '';
+        return direction * aBusinessName.localeCompare(bBusinessName);
+      case 'branch':
+        return direction * (a.branch_name || '').localeCompare(b.branch_name || '');
+      case 'type':
+        return direction * (a.type || '').localeCompare(b.type || '');
+      case 'price':
+        return direction * (a.price - b.price);
+      case 'quantity':
+        return direction * (a.quantity - b.quantity);
+      case 'status':
+        const getStatusPriority = (p: Product) => p.accepted ? 3 : p.rejection_reason ? 1 : 2;
+        return direction * (getStatusPriority(a) - getStatusPriority(b));
+      case 'production_date':
+        if (!a.production_date) return direction;
+        if (!b.production_date) return -direction;
+        return direction * a.production_date.localeCompare(b.production_date);
+      case 'expiry_date':
+        if (!a.expiry_date) return direction;
+        if (!b.expiry_date) return -direction;
+        return direction * a.expiry_date.localeCompare(b.expiry_date);
+      default:
+        return 0;
+    }
+  });
+
+  const SortableHeader = ({ field, children }: { field: typeof sortField; children: React.ReactNode }) => (
+    <th 
+      scope="col" 
+      className={`px-6 py-3 text-${language === 'ar' ? 'right' : 'left'} text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer group`}
+      onClick={() => {
+        if (field === sortField) {
+          setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+          setSortField(field);
+          setSortDirection('asc');
+        }
+      }}
+    >
+      <div className="flex items-center justify-between">
+        <span>{children}</span>
+        <div className="flex flex-col ml-1">
+          <span className={`h-2 ${sortField === field && sortDirection === 'asc' ? 'text-indigo-600' : 'text-gray-400'}`}>▲</span>
+          <span className={`h-2 ${sortField === field && sortDirection === 'desc' ? 'text-indigo-600' : 'text-gray-400'}`}>▼</span>
+        </div>
+      </div>
+    </th>
+  );
 
   // Get available branches for selected business
   const availableBranches = useMemo(() => {
@@ -263,39 +321,27 @@ export function SubVendorProductsPage() {
         )}
 
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="min-w-full divide-y divide-gray-200" dir={language === 'ar' ? 'rtl' : 'ltr'}>
             <thead className="bg-gray-50">
               <tr>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t.product}
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t.business}
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t.branch}
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t.type}
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t.price}
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t.quantity}
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t.status}
-                </th>
+                <SortableHeader field="product_name">{t.productName}</SortableHeader>
+                <SortableHeader field="business">{t.business}</SortableHeader>
+                <SortableHeader field="branch">{t.branch}</SortableHeader>
+                <SortableHeader field="type">{t.productTypeColumn}</SortableHeader>
+                <SortableHeader field="price">{t.price}</SortableHeader>
+                <SortableHeader field="quantity">{t.quantity}</SortableHeader>
+                <SortableHeader field="production_date">{t.productionDate}</SortableHeader>
+                <SortableHeader field="expiry_date">{t.expiryDate}</SortableHeader>
+                <SortableHeader field="status">{t.acceptanceStatus}</SortableHeader>
                 <th scope="col" className="relative px-6 py-3">
                   <span className="sr-only">{t.actions}</span>
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredProducts.map((product) => (
+              {sortedProducts.map((product) => (
                 <tr key={product.product_id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className={`px-6 py-4 whitespace-nowrap text-${language === 'ar' ? 'right' : 'left'}`}>
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
                         {product.image_url ? (
@@ -310,7 +356,7 @@ export function SubVendorProductsPage() {
                           </div>
                         )}
                       </div>
-                      <div className="mr-4">
+                      <div className={`${language === 'ar' ? 'mr-4' : 'ml-4'}`}>
                         <div className="text-sm font-medium text-gray-900">
                           {product.product_name}
                         </div>
@@ -322,67 +368,71 @@ export function SubVendorProductsPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-${language === 'ar' ? 'right' : 'left'}`}>
                     <div className="text-sm text-gray-900">
                       {assignments.find(a => a.owner_business_code === product.business_code_of_owner)?.owner_business_name || t.unknownBusiness}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-${language === 'ar' ? 'right' : 'left'}`}>
                     <div className="text-sm text-gray-900">
-                      {product.branch_name}
+                      {product.branch_name || '-'}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className={`px-6 py-4 whitespace-nowrap text-${language === 'ar' ? 'right' : 'left'}`}>
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       product.type === 'food' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
                     }`}>
                       {product.type === 'food' ? t.food : t.nonFood}
                     </span>
-                    {product.type === 'food' && product.expiry_date && (
-                      <div className="mt-1 text-xs">
-                        <span className="text-gray-500">{t.expiryDate}:</span>
-                        <span className={`mr-1 ${
-                          new Date(product.expiry_date) < new Date() 
-                            ? 'text-red-600 font-medium' 
-                            : 'text-gray-900'
-                        }`}>
-                          {new Date(product.expiry_date).toLocaleDateString(
-                            language === 'ar' ? 'ar' : 'en-US',
-                            { dateStyle: 'medium' }
-                          )}
-                        </span>
-                      </div>
-                    )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-${language === 'ar' ? 'right' : 'left'}`}>
                     {product.price.toFixed(3)} {t.currency}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-${language === 'ar' ? 'right' : 'left'}`}>
                     {product.quantity}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      product.accepted ? 'bg-green-100 text-green-800' :
-                      product.rejection_reason ? 'bg-red-100 text-red-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {product.accepted ? t.approved :
-                       product.rejection_reason ? t.rejected :
-                       t.pending}
-                    </span>
-                    {product.rejection_reason && (
-                      <p className="text-xs text-red-600 mt-1">
-                        {product.rejection_reason}
-                      </p>
-                    )}
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-${language === 'ar' ? 'right' : 'left'}`}>
+                    {product.type === 'food' && product.production_date ? 
+                      new Date(product.production_date).toLocaleDateString(
+                        language === 'ar' ? 'ar' : 'en-US',
+                        { dateStyle: 'medium' }
+                      ) : '-'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-${language === 'ar' ? 'right' : 'left'}`}>
+                    {product.type === 'food' && product.expiry_date ? (
+                      <span className={product.expiry_date && new Date(product.expiry_date) < new Date() ? 'text-red-600 font-medium' : ''}>
+                        {new Date(product.expiry_date).toLocaleDateString(
+                          language === 'ar' ? 'ar' : 'en-US',
+                          { dateStyle: 'medium' }
+                        )}
+                      </span>
+                    ) : '-'}
+                  </td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-${language === 'ar' ? 'right' : 'left'}`}>
+                    <div className="flex flex-col space-y-1">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        product.accepted ? 'bg-green-100 text-green-800' :
+                        product.rejection_reason ? 'bg-red-100 text-red-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {product.accepted ? t.approved :
+                         product.rejection_reason ? t.rejected :
+                         t.pending}
+                      </span>
+                      {product.rejection_reason && (
+                        <p className="text-xs text-red-600">
+                          {product.rejection_reason}
+                        </p>
+                      )}
+                    </div>
+                  </td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-${language === 'ar' ? 'right' : 'left'} text-sm font-medium`}>
                     <button
                       onClick={() => {
                         setEditingProduct(product);
                         setShowForm(true);
                       }}
-                      className="text-indigo-600 hover:text-indigo-900 ml-4"
+                      className={`text-indigo-600 hover:text-indigo-900 ${language === 'ar' ? 'ml-4' : 'mr-4'}`}
                     >
                       {t.edit}
                     </button>

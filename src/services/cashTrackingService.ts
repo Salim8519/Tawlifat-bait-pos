@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { createTransaction } from './transactionService';
 
 export interface CashTracking {
   tracking_id: string;
@@ -35,7 +36,7 @@ function generateTrackingId(): string {
 }
 
 /**
- * Create a new cash tracking record
+ * Create a new cash tracking record and corresponding transaction
  */
 export async function createCashTracking(data: CreateCashTrackingData): Promise<CashTracking> {
   const tracking_id = generateTrackingId();
@@ -54,6 +55,7 @@ export async function createCashTracking(data: CreateCashTrackingData): Promise<
     transaction_date: new Date().toISOString().split('T')[0] // Current date in YYYY-MM-DD format
   };
 
+  // Start transaction
   const { data: record, error } = await supabase
     .from('cash_tracking')
     .insert([trackingData])
@@ -63,6 +65,64 @@ export async function createCashTracking(data: CreateCashTrackingData): Promise<
   if (error) {
     console.error('Error creating cash tracking record:', error);
     throw error;
+  }
+
+  // Create corresponding transaction in transactions_overall
+  if (data.cash_additions > 0) {
+    await createTransaction({
+      business_code: data.business_code,
+      business_name: await getBusinessName(data.business_code),
+      branch_name: data.business_branch_name,
+      transaction_type: 'cash_addition',
+      amount: data.cash_additions,
+      payment_method: 'cash',
+      transaction_reason: data.cash_change_reason || 'Cash Addition',
+      owner_profit_from_this_transcation: data.cash_additions,
+      details: {
+        previous_total_cash: data.previous_total_cash,
+        new_total_cash: data.new_total_cash,
+        cashier_name: data.cashier_name,
+        tracking_id: tracking_id
+      }
+    });
+  }
+
+  if (data.cash_removals > 0) {
+    await createTransaction({
+      business_code: data.business_code,
+      business_name: await getBusinessName(data.business_code),
+      branch_name: data.business_branch_name,
+      transaction_type: 'cash_removal',
+      amount: -data.cash_removals,
+      payment_method: 'cash',
+      transaction_reason: data.cash_change_reason || 'Cash Removal',
+      owner_profit_from_this_transcation: -data.cash_removals,
+      details: {
+        previous_total_cash: data.previous_total_cash,
+        new_total_cash: data.new_total_cash,
+        cashier_name: data.cashier_name,
+        tracking_id: tracking_id
+      }
+    });
+  }
+
+  if (data.total_returns > 0) {
+    await createTransaction({
+      business_code: data.business_code,
+      business_name: await getBusinessName(data.business_code),
+      branch_name: data.business_branch_name,
+      transaction_type: 'cash_return',
+      amount: -data.total_returns,
+      payment_method: 'cash',
+      transaction_reason: 'Product Return',
+      owner_profit_from_this_transcation: -data.total_returns,
+      details: {
+        previous_total_cash: data.previous_total_cash,
+        new_total_cash: data.new_total_cash,
+        cashier_name: data.cashier_name,
+        tracking_id: tracking_id
+      }
+    });
   }
 
   return record;
@@ -154,16 +214,31 @@ export async function updateCashForSale(
     const previousTotal = latestTracking?.new_total_cash || 0;
     const newTotal = previousTotal + saleAmount;
 
-    // Create new tracking record with previous total
-    return createCashTracking({
-      business_code: businessCode,
-      business_branch_name: branchName,
-      cashier_name: cashierName,
-      previous_total_cash: previousTotal,
-      new_total_cash: newTotal,
-      cash_additions: saleAmount,
-      cash_change_reason: 'sale'
-    });
+    // Create new tracking record WITHOUT creating a transaction
+    const { data: record, error } = await supabase
+      .from('cash_tracking')
+      .insert([{
+        tracking_id: generateTrackingId(),
+        business_code: businessCode,
+        business_branch_name: branchName,
+        cashier_name: cashierName,
+        previous_total_cash: previousTotal,
+        new_total_cash: newTotal,
+        cash_additions: saleAmount,
+        cash_removals: 0,
+        cash_change_reason: 'sale',
+        total_returns: 0,
+        transaction_date: new Date().toISOString().split('T')[0]
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating cash tracking record:', error);
+      throw error;
+    }
+
+    return record;
   } catch (error) {
     console.error('Error updating cash for sale:', error);
     throw error;
@@ -215,24 +290,44 @@ export async function updateCashManually(
   reason: string
 ): Promise<CashTracking> {
   try {
-    // Get the latest tracking record
-    const latestTracking = await getLatestCashTracking(businessCode, branchName);
-  
-    // Use the latest total as the previous total
-    const previousTotal = latestTracking?.new_total_cash || 0;
-    const newTotal = previousTotal + amount; // amount can be positive or negative
+    // Get latest cash tracking to get current cash total
+    const { data: latestCashTracking } = await supabase
+      .from('cash_tracking')
+      .select('new_total_cash')
+      .eq('business_code', businessCode)
+      .eq('business_branch_name', branchName)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
 
-    // Create new tracking record with previous total
-    return createCashTracking({
-      business_code: businessCode,
-      business_branch_name: branchName,
-      cashier_name: cashierName,
-      previous_total_cash: previousTotal,
-      new_total_cash: newTotal,
-      cash_additions: amount > 0 ? amount : 0,
-      cash_removals: amount < 0 ? Math.abs(amount) : 0,
-      cash_change_reason: reason
-    });
+    const previousTotal = latestCashTracking?.new_total_cash || 0;
+    const newTotal = previousTotal + amount;
+
+    // Create cash tracking record without creating a transaction
+    const { data: record, error } = await supabase
+      .from('cash_tracking')
+      .insert([{
+        tracking_id: `MANUAL${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+        business_code: businessCode,
+        business_branch_name: branchName,
+        cashier_name: cashierName,
+        previous_total_cash: previousTotal,
+        new_total_cash: newTotal,
+        cash_additions: amount,
+        cash_removals: 0,
+        cash_change_reason: reason,
+        total_returns: 0,
+        transaction_date: new Date().toISOString().split('T')[0]
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating cash tracking record:', error);
+      throw error;
+    }
+
+    return record;
   } catch (error) {
     console.error('Error updating cash manually:', error);
     throw error;
@@ -291,4 +386,31 @@ export async function getCashTrackingStats(
   });
 
   return stats;
+}
+
+// Helper function to get business name
+async function getBusinessName(businessCode: string): Promise<string> {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('business_name')
+      .eq('business_code', businessCode)
+      .in('role', ['owner', 'manager']) // Get either owner or manager profile
+      .limit(1); // Ensure we only get one row
+
+    if (error) {
+      console.error('Error fetching business name:', error);
+      return businessCode; // Fallback to business code if error
+    }
+
+    // If no data or empty array, return business code
+    if (!data || data.length === 0) {
+      return businessCode;
+    }
+
+    return data[0].business_name || businessCode;
+  } catch (err) {
+    console.error('Error in getBusinessName:', err);
+    return businessCode; // Fallback to business code if any error
+  }
 }

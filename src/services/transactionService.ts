@@ -9,8 +9,16 @@ export async function createTransaction(transaction: Omit<Transaction, 'transact
     .from('transactions_overall')
     .insert([{
       ...transaction,
-      details: JSON.stringify(transaction.details),
-      transaction_date: transaction.transaction_date || new Date().toISOString()
+      amount: transaction.amount.toString(), // Convert to string
+      details: JSON.stringify(transaction.details || {}),
+      transaction_date: transaction.transaction_date || new Date().toISOString(),
+      business_code: transaction.business_code || '',
+      business_name: transaction.business_name || '',
+      branch_name: transaction.branch_name || '',
+      payment_method: transaction.payment_method || '',
+      transaction_type: transaction.transaction_type || '',
+      transaction_reason: transaction.transaction_reason || '',
+      currency: transaction.currency || 'OMR'
     }])
     .select()
     .single();
@@ -22,7 +30,7 @@ export async function createTransaction(transaction: Omit<Transaction, 'transact
 
   return {
     ...data,
-    details: JSON.parse(data.details)
+    details: typeof data.details === 'string' ? JSON.parse(data.details) : data.details
   };
 }
 

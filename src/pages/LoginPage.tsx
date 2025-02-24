@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { Store, AlertCircle } from 'lucide-react';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { loginTranslations } from '../translations/login';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAuth } from '../hooks/useAuth';
 import { getRedirectPath } from '../services/profileService';
+import { checkRateLimit, sanitizeInput, validateEmail } from '../services/securityService';
 
 export function LoginPage() {
   const { language } = useLanguageStore();
@@ -16,18 +17,45 @@ export function LoginPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [localError, setLocalError] = useState<string | null>(null);
 
   // Redirect if already logged in
   if (user) {
     return <Navigate to="/dashboard" replace />;
   }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { user, profile } = await signIn(email, password);
+    setLocalError(null);
+
+    // Sanitize inputs
+    const sanitizedEmail = sanitizeInput(email);
+    
+    // Validate email format
+    if (!validateEmail(sanitizedEmail)) {
+      setLocalError('Invalid email format');
+      return;
+    }
+
+    // Check rate limiting
+    const { blocked, remainingAttempts } = checkRateLimit(sanitizedEmail);
+    if (blocked) {
+      setLocalError('Too many login attempts. Please try again in 15 minutes.');
+      return;
+    }
+
+    // Proceed with login
+    const { user, profile } = await signIn(sanitizedEmail, password);
     if (user && profile) {
       const redirectPath = getRedirectPath(profile);
       navigate(redirectPath);
+    } else if (remainingAttempts > 0) {
+      setLocalError(`Login failed. ${remainingAttempts} attempts remaining.`);
     }
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value.toLowerCase()); // Convert to lowercase for consistency
   };
 
   return (
@@ -43,7 +71,7 @@ export function LoginPage() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" onSubmit={handleSubmit} autoComplete="off">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 {t.email}
@@ -55,16 +83,25 @@ export function LoginPage() {
                   type="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleEmailChange}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  autoComplete="off"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                {t.password}
-              </label>
+              <div className="flex items-center justify-between">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  {t.password}
+                </label>
+                <Link
+                  to="/reset-password"
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                >
+                  {t.forgotPassword}
+                </Link>
+              </div>
               <div className="mt-1">
                 <input
                   id="password"
@@ -74,18 +111,19 @@ export function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  autoComplete="off"
                 />
               </div>
             </div>
 
-            {error && (
+            {(error || localError) && (
               <div className="rounded-md bg-red-50 p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
                     <AlertCircle className="h-5 w-5 text-red-400" />
                   </div>
                   <div className="mr-3">
-                    <p className="text-sm text-red-700">{error}</p>
+                    <p className="text-sm text-red-700">{localError || error}</p>
                   </div>
                 </div>
               </div>
@@ -101,30 +139,6 @@ export function LoginPage() {
               </button>
             </div>
           </form>
-
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">
-                  {t.demoAccounts}
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 gap-3">
-              <div className="rounded-md bg-gray-50 p-4">
-                <div className="space-y-2 text-sm text-gray-700">
-                  <p><strong>{t.owner}:</strong> username: owner, password: owner123</p>
-                  <p><strong>{t.vendor}:</strong> username: vendor, password: vendor123</p>
-                  <p><strong>{t.cashier}:</strong> username: cashier, password: cashier123</p>
-                  <p><strong>{t.admin}:</strong> username: admin, password: admin123</p>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

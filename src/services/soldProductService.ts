@@ -13,6 +13,7 @@ export interface SoldProduct {
   business_code: string;
   business_bracnh_name: string;
   comission_for_bussnies_from_vendor?: number;
+  tax_on_product?: number;
   created_at: string;
 }
 
@@ -23,7 +24,9 @@ export async function createSoldProducts(
   branchName: string,
   vendorCommissionEnabled: boolean,
   commissionRate: number,
-  minCommissionAmount: number
+  minCommissionAmount: number,
+  taxEnabled: boolean,
+  taxRate: number
 ): Promise<SoldProduct[]> {
   // Get the original products to access their original data
   const { data: products } = await supabase
@@ -39,9 +42,6 @@ export async function createSoldProducts(
       return null;
     }
 
-    // Determine if it's a vendor product
-    const isVendorProduct = Boolean(originalProduct.business_code_if_vendor);
-    
     // For vendor products:
     // - unit_price_original is the original price in products table
     // - unit_price_by_bussniess is the final price with commission
@@ -49,6 +49,21 @@ export async function createSoldProducts(
     // - unit_price_original is the same as unit_price_by_bussniess
     const originalPrice = originalProduct.price;
     const businessPrice = item.price; // This is already includes commission from POS service
+    
+    // Determine if it's a vendor product
+    const isVendorProduct = Boolean(originalProduct.business_code_if_vendor);
+    
+    // Add detailed logging for commission debugging
+    console.log('=== Commission Calculation Details ===', {
+      productId: item.id,
+      productName: item.nameAr,
+      isVendorProduct,
+      vendorCode: originalProduct.business_code_if_vendor,
+      originalPrice,
+      businessPrice,
+      vendorCommissionEnabled,
+      minCommissionAmount
+    });
     
     // Calculate commission if it's a vendor product and commission is enabled
     const commission = calculateCommission(
@@ -58,6 +73,25 @@ export async function createSoldProducts(
       vendorCommissionEnabled,
       minCommissionAmount
     );
+
+    // Log commission calculation result
+    console.log('Commission Calculation Result:', {
+      commission,
+      reason: !commission 
+        ? (!isVendorProduct 
+            ? 'Not a vendor product'
+            : !vendorCommissionEnabled 
+              ? 'Commission not enabled'
+              : originalPrice < minCommissionAmount 
+                ? 'Below minimum amount'
+                : 'Unknown reason')
+        : 'Commission applied'
+    });
+    
+    // Calculate tax if enabled
+    const taxAmount = taxEnabled 
+      ? (businessPrice * item.quantity * taxRate / 100)
+      : 0;
     
     return {
       sold_product_id: crypto.randomUUID(),
@@ -71,6 +105,7 @@ export async function createSoldProducts(
       business_code: businessCode,
       business_bracnh_name: branchName,
       comission_for_bussnies_from_vendor: commission,
+      tax_on_product: taxAmount,
       created_at: new Date().toISOString()
     };
   }).filter(Boolean) as SoldProduct[];

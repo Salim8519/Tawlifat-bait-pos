@@ -17,7 +17,10 @@ import {
   Ticket,
   Code,
   ShieldCheck,
-  ArrowLeftRight
+  ArrowLeftRight,
+  TrendingUp,
+  LayoutGrid,
+  Wallet
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useLanguageStore } from '../../store/useLanguageStore';
@@ -79,9 +82,16 @@ export function Sidebar() {
             </>
           ) : (
             <>
-              <NavItem to="/dashboard" icon={Home}>
-                {language === 'ar' ? 'الرئيسية' : 'Dashboard'}
-              </NavItem>
+              {(user?.role === 'owner' || user?.role === 'manager') && (
+                <>
+                  <NavItem to="/dashboard" icon={Home}>
+                    {language === 'ar' ? 'الرئيسية' : 'Dashboard'}
+                  </NavItem>
+                  <NavItem to="/reports" icon={BarChart}>
+                    {language === 'ar' ? 'التقارير' : 'Reports'}
+                  </NavItem>
+                </>
+              )}
               <NavItem to="/pos" icon={ShoppingCart}>
                 {language === 'ar' ? 'نقطة البيع' : 'POS'}
               </NavItem>
@@ -97,14 +107,14 @@ export function Sidebar() {
               <NavItem to="/cash-drawer" icon={DollarSign}>
                 {language === 'ar' ? 'درج النقود' : 'Cash Drawer'}
               </NavItem>
+              <NavItem to="/expenses" icon={Wallet}>
+                {language === 'ar' ? 'المصروفات العامة' : 'General Expenses'}
+              </NavItem>
               <NavItem to="/return-products" icon={ArrowLeftRight}>
                 {language === 'ar' ? 'إرجاع المنتجات' : 'Return Products'}
               </NavItem>
               <NavItem to="/receipts" icon={Receipt}>
                 {language === 'ar' ? 'الفواتير' : 'Receipts'}
-              </NavItem>
-              <NavItem to="/reports" icon={BarChart}>
-                {language === 'ar' ? 'التقارير' : 'Reports'}
               </NavItem>
               
               {(user?.role === 'owner' || user?.role === 'manager') && (
@@ -120,14 +130,20 @@ export function Sidebar() {
                  <NavItem to="/managers" icon={UserCog}>
                    {language === 'ar' ? 'المدراء' : 'Managers'}
                  </NavItem>
-                  <NavItem to="/sub-vendors" icon={Truck}>
-                    {language === 'ar' ? 'الموردين' : 'Vendors'}
+                  <NavItem to="/sub-vendors" icon={Users}>
+                    {language === 'ar' ? 'إدارة الموردين' : 'Sub-vendors'}
                   </NavItem>
                   <NavItem to="/branches" icon={Building2}>
                     {language === 'ar' ? 'الفروع' : 'Branches'}
                   </NavItem>
-                  <NavItem to="/rentals" icon={Building2}>
-                    {language === 'ar' ? 'الإيجارات' : 'Rentals'}
+                  <NavItem to="/vendor-profits" icon={TrendingUp}>
+                    {language === 'ar' ? 'أرباح الموردين' : 'Vendor Profits'}
+                  </NavItem>
+                  <NavItem to="/monthly-vendor-taxes" icon={DollarSign}>
+                    {language === 'ar' ? 'الضرائب الشهرية للموردين' : 'Monthly Vendor Taxes'}
+                  </NavItem>
+                  <NavItem to="/vendor-spaces" icon={LayoutGrid}>
+                    {language === 'ar' ? 'مساحات الموردين' : 'Vendor Spaces'}
                   </NavItem>
                   <NavItem to="/coupons" icon={Ticket}>
                     {language === 'ar' ? 'الكوبونات' : 'Coupons'}

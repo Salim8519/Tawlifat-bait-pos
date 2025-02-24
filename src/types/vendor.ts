@@ -6,6 +6,10 @@ export interface VendorAssignment {
   branch_name: string;
   date_of_assignment: string;
   vendor_email_identifier: string;
+  profile?: {
+    full_name: string;
+    vendor_business_name: string;
+  };
 }
 
 export interface VendorProfile {

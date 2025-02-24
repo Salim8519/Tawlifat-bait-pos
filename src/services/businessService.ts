@@ -2,6 +2,22 @@ import { supabase } from '../lib/supabase';
 import type { Profile } from '../types/profile';
 import type { Branch } from '../types/branch';
 
+export async function getBusinessName(businessCode: string): Promise<string> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('business_name')
+    .eq('business_code', businessCode)
+    .eq('role', 'owner')
+    .single();
+
+  if (error) {
+    console.error('Error fetching business name:', error);
+    return 'Unknown Business';
+  }
+
+  return data?.business_name || 'Unknown Business';
+}
+
 export async function getUsersByBusinessCode(businessCode: string): Promise<Profile[]> {
   const { data, error } = await supabase
     .from('profiles')

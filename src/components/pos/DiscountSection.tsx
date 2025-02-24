@@ -10,7 +10,7 @@ interface DiscountSectionProps {
   onApplyDiscount: (discount: Discount) => void;
   onApplyCoupon: (code: string) => void;
   appliedDiscount?: Discount;
-  appliedCoupon?: string;
+  appliedCoupon?: { discount_type: 'fixed' | 'percentage', discount_value: number };
   error?: string;
 }
 
@@ -29,29 +29,50 @@ export function DiscountSection({
   const [discountValue, setDiscountValue] = useState(appliedDiscount?.value.toString() || '');
   const [couponCode, setCouponCode] = useState('');
 
+  const getDiscountDisplay = () => {
+    let display = '';
+    
+    if (appliedDiscount) {
+      const value = appliedDiscount.type === 'percentage' 
+        ? `${appliedDiscount.value}%`
+        : `${appliedDiscount.value.toFixed(3)} ${t.currency}`;
+      display += `${t.discount}: ${value}`;
+    }
+
+    if (appliedCoupon) {
+      const value = appliedCoupon.discount_type === 'percentage'
+        ? `${appliedCoupon.discount_value}%`
+        : `${appliedCoupon.discount_value.toFixed(3)} ${t.currency}`;
+      if (display) display += ' + ';
+      display += `${t.coupon}: ${value}`;
+    }
+
+    return display || t.noDiscountApplied;
+  };
+
   const handleApplyDiscount = () => {
     if (discountValue) {
       const value = parseFloat(discountValue);
+      if (isNaN(value) || value < 0) return;
+
       if (discountType === 'percentage' && value > 100) {
-        return; // Don't allow percentage over 100%
+        setError(t.invalidPercentage);
+        return;
       }
+
       if (discountType === 'fixed' && value > subtotal) {
-        return; // Don't allow discount greater than subtotal
+        setError(t.discountExceedsTotal);
+        return;
       }
+
       onApplyDiscount({
         type: discountType,
-        value
+        value: value
       });
+      setDiscountValue('');
     }
   };
 
-  const getDiscountDisplay = () => {
-    if (!appliedDiscount) return null;
-    const value = appliedDiscount.value;
-    return appliedDiscount.type === 'fixed' 
-      ? `${value.toFixed(3)} ${t.currency}`
-      : `${value}%`;
-  };
   return (
     <div className="border-t p-2 space-y-2" dir={language === 'ar' ? 'rtl' : 'ltr'}>
       <div className="space-y-2">
@@ -98,7 +119,7 @@ export function DiscountSection({
           <span className="font-medium text-sm">{t.coupon}</span>
           {appliedCoupon && (
             <span className="text-sm text-green-600">
-              {appliedCoupon}
+              {getDiscountDisplay()}
             </span>
           )}
         </div>

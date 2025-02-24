@@ -8,10 +8,11 @@ import { getBranchesByBusinessCode } from '../services/businessService';
 import { BranchFilter } from '../components/products/BranchFilter';
 import { BarcodeButton } from '../components/products/BarcodeButton';
 import { upcomingProductsTranslations } from '../translations/upcomingProducts';
-import { getProducts, approveProduct } from '../services/productService';
+import { getProducts, approveProduct, deleteProduct } from '../services/productService';
 import type { Product, ProductFilter } from '../types/product';
 import { getProfile } from '../services/profileService';
 import type { Profile } from '../types/profile';
+import { startProductMonitoring } from '../services/productMonitorService';
 
 // Color palette for vendor badges
 const VENDOR_COLORS = [
@@ -63,6 +64,17 @@ export function UpcomingProductsPage() {
     };
     loadProfile();
   }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.businessCode) {
+      // Reset monitoring state when page is visited
+      startProductMonitoring(
+        user.businessCode,
+        isCashier ? currentBranch?.branch_name : selectedBranch === 'all' ? undefined : selectedBranch,
+        language
+      );
+    }
+  }, [user?.businessCode, selectedBranch, language]);
 
   const calculatePriceWithCommission = (product: Product): number => {
     // Only apply commission to vendor products if enabled in settings
@@ -158,6 +170,10 @@ export function UpcomingProductsPage() {
   };
 
   const handleReject = async (product: Product) => {
+    if (!reviewNotes.trim()) {
+      alert(t.rejectionReasonRequired);
+      return;
+    }
     try {
       await approveProduct(product.product_id, false, reviewNotes);
       await loadProducts();
@@ -165,6 +181,17 @@ export function UpcomingProductsPage() {
       setReviewNotes('');
     } catch (error) {
       console.error('Error rejecting product:', error);
+    }
+  };
+
+  const handleDelete = async (productId: number) => {
+    if (confirm(t.confirmDelete)) {
+      try {
+        await deleteProduct(productId);
+        await loadProducts();
+      } catch (error) {
+        console.error('Error deleting product:', error);
+      }
     }
   };
 
@@ -369,6 +396,14 @@ export function UpcomingProductsPage() {
                             userProfile={userProfile}
                           />
                         </>
+                      )}
+                      {product.rejection_reason && (
+                        <button
+                          onClick={() => handleDelete(product.product_id)}
+                          className="text-red-600 hover:text-red-900 ml-4"
+                        >
+                          {t.delete}
+                        </button>
                       )}
                     </td>
                   </tr>

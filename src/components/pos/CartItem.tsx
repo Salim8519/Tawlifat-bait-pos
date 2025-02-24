@@ -47,6 +47,21 @@ export function CartItem({
   return (
     <div className="border-b last:border-b-0 py-2" dir={language === 'ar' ? 'rtl' : 'ltr'}>
       <div className="flex justify-between">
+        {/* Product Image */}
+        {item.imageUrl && (
+          <div className="w-16 h-16 mr-4 flex-shrink-0">
+            <img 
+              src={item.imageUrl} 
+              alt={item.nameAr} 
+              className="w-full h-full object-cover rounded"
+              onError={(e) => {
+                // Hide image on error
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          </div>
+        )}
+        
         <div className="flex-1">
           <div className="flex flex-col">
             <span className="text-sm font-medium text-gray-900">{item.nameAr}</span>

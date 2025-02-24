@@ -49,6 +49,7 @@ export function ConfirmationPage({
   const [cashReceived, setCashReceived] = useState(total.toFixed(3));
   const [changeDue, setChangeDue] = useState(0);
   const [cashError, setCashError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { print, isPrinting, selectedPrinterWidth, setSelectedPrinterWidth } = usePrintReceipt();
 
   const handleCashAmountChange = (amount: string) => {
@@ -145,11 +146,17 @@ export function ConfirmationPage({
   };
 
   const handleConfirm = () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
+    // Round the total to 3 decimal places
+    const roundedTotal = Number(total.toFixed(3));
+    
     console.log('Confirming payment:', {
       paymentMethod,
       cashConfirmed,
       cashReceived,
-      total
+      total: roundedTotal
     });
 
     // For cash payments, validate both the checkbox and amount
@@ -162,10 +169,11 @@ export function ConfirmationPage({
         return;
       }
 
-      const receivedAmount = parseFloat(cashReceived);
-      console.log('Received amount:', receivedAmount);
+      // Round the received amount to 3 decimal places
+      const receivedAmount = Number(parseFloat(cashReceived).toFixed(3));
+      console.log('Received amount:', receivedAmount, 'Rounded total:', roundedTotal);
       
-      if (isNaN(receivedAmount) || receivedAmount < total) {
+      if (isNaN(receivedAmount) || receivedAmount < roundedTotal) {
         console.log('Invalid amount, setting error');
         setCashError(t.insufficientCash);
         return;
@@ -299,15 +307,17 @@ export function ConfirmationPage({
           <div className="flex justify-end space-x-2 space-x-reverse pt-4 border-t">
             <button
               onClick={onCancel}
-              className="px-4 py-2 text-gray-700 hover:text-gray-900"
+              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              disabled={isSubmitting}
             >
               {t.cancel}
             </button>
             <button
               onClick={handleConfirm}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              className={`px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={isSubmitting}
             >
-              {t.confirm}
+              {t.confirmPayment}
             </button>
           </div>
         </div>

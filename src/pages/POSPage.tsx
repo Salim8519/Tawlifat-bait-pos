@@ -21,6 +21,8 @@ import { validateCoupon } from '../services/couponService';
 import { updateProductQuantitiesAfterSale } from '../services/inventoryService';
 import { processReceipt } from '../services/receiptService';
 import { updateCustomerOrderInfo } from '../services/customerService';
+import { incrementCouponUses } from '../services/couponService';
+import { updateVendorTransactionsFromSale } from '../services/updateVendorTransactionsService';
 import type { CartItem as CartItemType, Customer, Discount } from '../types/pos';
 import type { Product } from '../types/product';
 
@@ -43,7 +45,7 @@ export function POSPage() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const { processReceipt, isProcessing, error: receiptError, receiptText } = useReceipt();
   const [appliedDiscount, setAppliedDiscount] = useState<Discount | null>(null);
-  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
   const [discountError, setDiscountError] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [cashReceived, setCashReceived] = useState<string>('');
@@ -76,7 +78,7 @@ export function POSPage() {
   useEffect(() => {
     const loadBranches = async () => {
       if (user?.businessCode) {
-        setIsLoading(true);
+        setLoading(true);
         try {
           const branchData = await getBranchesByBusinessCode(user.businessCode);
           useBusinessStore.setState(state => ({
@@ -89,7 +91,7 @@ export function POSPage() {
           setError(t.errorLoadingBranches);
           setIsInitialLoad(false);
         } finally {
-          setIsLoading(false);
+          setLoading(false);
         }
       }
     };
@@ -154,10 +156,20 @@ export function POSPage() {
       type: product.type,
       price: calculatePriceWithCommission(product),
       quantity: 1,
-      category: '',
+      category: product.category || '',
       expiryDate: product.expiry_date || undefined,
+      // Ensure maxQuantity is set correctly for all products
       maxQuantity: product.trackable ? undefined : product.quantity,
-      trackable: product.trackable
+      trackable: product.trackable,
+      vendorId: product.business_code_if_vendor || '',
+      vendorName: product.business_name_of_product || '',
+      vendorPrice: product.vendorPrice || 0,
+      business_code_if_vendor: product.business_code_if_vendor,
+      business_name_if_vendor: product.business_name_of_product,
+      imageUrl: product.image_url,
+      description: product.description,
+      // Add current quantity for validation
+      _currentStock: product.quantity
     });
   };
 
@@ -167,32 +179,110 @@ export function POSPage() {
       p.barcode && p.barcode.startsWith(partialBarcode)
     );
     
-    // If only one match and it's exact, treat it as a full scan
+    // If only one match and it's exact, do NOT trigger handleScan as it will be triggered by the scanner component
     if (matches.length === 1 && matches[0].barcode === partialBarcode) {
-      handleScan(partialBarcode);
+      return; // Don't trigger handleScan here, let the scanner component handle it
     }
   };
 
   const addToCart = (product: CartItemType) => {
+    console.log('=== Adding Product to Cart ===');
+    console.log('Product Details:', {
+      id: product.id,
+      name: product.nameAr,
+      isVendorProduct: !!product.business_code_if_vendor,
+      trackable: product.trackable,
+      maxQuantity: product.maxQuantity,
+      currentStock: product._currentStock
+    });
+
     setCart(prevCart => {
       const existingItem = prevCart.find(item => item.id === product.id);
+      const currentQuantity = existingItem ? existingItem.quantity : 0;
       
-      // If item exists, check quantity limits
-      if (existingItem) {
-        // For non-trackable products, check quantity
-        if (!product.trackable && existingItem.quantity >= (product.maxQuantity || 0)) {
+      console.log('Cart State:', {
+        existingInCart: !!existingItem,
+        currentQuantity,
+        maxAllowed: product.maxQuantity,
+        wouldExceedLimit: (!product.trackable || product.business_code_if_vendor) && currentQuantity >= (product.maxQuantity || 0)
+      });
+
+      // Check quantity for both non-trackable and vendor products
+      if (!product.trackable || product.business_code_if_vendor) {
+        if (currentQuantity >= (product.maxQuantity || 0)) {
+          console.log('❌ Quantity validation failed:', {
+            currentQuantity,
+            maxQuantity: product.maxQuantity,
+            reason: 'Would exceed available stock'
+          });
           setError(t.outOfStock.replace('{product}', product.nameAr));
           return prevCart;
         }
-        
+      }
+      
+      console.log('✅ Quantity validation passed:', {
+        currentQuantity,
+        maxQuantity: product.maxQuantity,
+        newQuantity: currentQuantity + 1
+      });
+
+      if (existingItem) {
         return prevCart.map(item =>
           item.id === product.id
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
+
+      // Add metadata for future reference
+      const enrichedProduct = {
+        ...product,
+        quantity: 1,
+        _metadata: {
+          vendor: {
+            code: product.vendorId || '',
+            name: product.vendorName || '',
+            business_code: product.business_code_if_vendor || '',
+            business_name: product.business_name_if_vendor || ''
+          },
+          sale: {
+            business_code: user?.businessCode || '',
+            business_name: user?.businessName || '',
+            branch_name: selectedBranchId || '',
+            sale_date: new Date().toISOString()
+          },
+          product: {
+            original_price: product.price,
+            vendor_price: product.vendorPrice || 0,
+            is_vendor_supplied: !!product.business_code_if_vendor
+          }
+        }
+      };
+
+      // Log vendor product metadata if it's a vendor product
+      if (enrichedProduct._metadata.product.is_vendor_supplied) {
+        console.log('=== Vendor Product Added to Cart ===');
+        console.log('Product Name:', product.nameAr);
+        console.log('Vendor Details:', {
+          code: enrichedProduct._metadata.vendor.code,
+          name: enrichedProduct._metadata.vendor.name,
+          business: enrichedProduct._metadata.vendor.business_name,
+          business_code: enrichedProduct._metadata.vendor.business_code
+        });
+        console.log('Price Details:', {
+          selling_price: product.price,
+          original_price: enrichedProduct._metadata.product.original_price,
+          vendor_price: enrichedProduct._metadata.product.vendor_price
+        });
+        console.log('Sale Context:', {
+          business: enrichedProduct._metadata.sale.business_name,
+          branch: enrichedProduct._metadata.sale.branch_name,
+          date: enrichedProduct._metadata.sale.sale_date
+        });
+        console.log('===============================');
+      }
       
-      return [...prevCart, { ...product, quantity: 1 }];
+      return [...prevCart, enrichedProduct];
     });
   };
 
@@ -247,18 +337,25 @@ export function POSPage() {
 
   const handleApplyCoupon = async (code: string) => {
     setDiscountError(null);
+    if (!user?.businessCode) return;
+
     try {
-      const coupon = await validateCoupon(code, user!.businessCode);
+      const subtotal = calculateSubtotal();
+      const { coupon, error } = await validateCoupon(code, user.businessCode, subtotal);
+      
+      if (error) {
+        setDiscountError(error);
+        setAppliedCoupon(null);
+        return;
+      }
+
       if (coupon) {
-        setAppliedCoupon(code);
-        // Apply coupon discount
-        setAppliedDiscount({
-          type: coupon.discount_type,
-          value: coupon.discount_value
-        });
+        setAppliedCoupon(coupon);
       }
     } catch (error) {
-      setDiscountError(error instanceof Error ? error.message : t.invalidCoupon);
+      console.error('Error applying coupon:', error);
+      setDiscountError(t.invalidCoupon);
+      setAppliedCoupon(null);
     }
   };
 
@@ -267,11 +364,27 @@ export function POSPage() {
   };
 
   const calculateDiscount = () => {
-    if (!appliedDiscount) return 0;
     const subtotal = calculateSubtotal();
-    return appliedDiscount.type === 'fixed'
-      ? appliedDiscount.value
-      : (subtotal * appliedDiscount.value) / 100;
+    let totalDiscount = 0;
+
+    // Calculate manual discount
+    if (appliedDiscount) {
+      const manualDiscount = appliedDiscount.type === 'percentage'
+        ? (subtotal * (appliedDiscount.value / 100))
+        : appliedDiscount.value;
+      totalDiscount += manualDiscount;
+    }
+
+    // Calculate coupon discount
+    if (appliedCoupon) {
+      const couponDiscount = appliedCoupon.discount_type === 'percentage'
+        ? (subtotal * (appliedCoupon.discount_value / 100))
+        : appliedCoupon.discount_value;
+      totalDiscount += couponDiscount;
+    }
+
+    // Ensure total discount doesn't exceed subtotal
+    return Math.min(totalDiscount, subtotal);
   };
 
   const calculateTax = () => {
@@ -285,25 +398,33 @@ export function POSPage() {
     const subtotal = calculateSubtotal();
     const discount = calculateDiscount();
     const tax = calculateTax();
-    return subtotal - discount + tax;
+    return Number((subtotal - discount + tax).toFixed(3));
   };
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     
-    // Process receipt first before showing confirmation
-    const receipt = await processReceipt(
-      cart,
-      selectedCustomer,
-      paymentMethod,
-      calculateDiscount(),
-      appliedCoupon,
-      cartNotes
-    );
+    try {
+      // Process receipt first before showing confirmation
+      const receipt = await processReceipt(
+        cart,
+        selectedCustomer,
+        paymentMethod,
+        calculateDiscount(),
+        appliedCoupon,
+        cartNotes
+      );
 
-    if (receipt) {
+      if (receipt && appliedCoupon && user?.businessCode) {
+        // Increment coupon uses after successful checkout
+        await incrementCouponUses(appliedCoupon.coupon_code, user.businessCode);
+      }
+
       setCurrentReceipt(receipt);
       setShowConfirmation(true);
+    } catch (error) {
+      console.error('Error processing receipt:', error);
+      setError(t.errorProcessingReceipt);
     }
   };
 
@@ -323,39 +444,67 @@ export function POSPage() {
     try {
       console.log('Processing payment:', paymentMethod);
       
-      // Update cash tracking for cash payments
+      // For cash payments, ensure cash tracking is updated first
       if (paymentMethod === 'cash') {
         console.log('Updating cash tracking...');
-        await updateCashForSale(
-          user!.businessCode,
-          selectedBranch.branch_name,
-          user!.name,
-          calculateTotal()
-        );
+        try {
+          await updateCashForSale(
+            user!.businessCode,
+            selectedBranch.branch_name,
+            user!.name,
+            calculateTotal()
+          );
+        } catch (error) {
+          console.error('Failed to update cash tracking:', error);
+          setError(t.errorUpdatingCash);
+          return; // Stop the process if cash tracking fails
+        }
       }
 
+      // After cash is confirmed, proceed with other updates
       console.log('Updating quantities for cart:', cart);
       
       // Update product quantities for non-trackable products
-      await updateProductQuantitiesAfterSale(
-        cart,
-        user!.businessCode,
-        selectedBranch.branch_name
-      ).catch(error => {
+      try {
+        await updateProductQuantitiesAfterSale(
+          cart,
+          user!.businessCode,
+          selectedBranch.branch_name
+        );
+      } catch (error) {
         console.error('Failed to update quantities:', error);
-        throw error;
-      });
+        setError(t.errorUpdatingQuantities);
+        return;
+      }
+
+      // Update vendor transactions for vendor products
+      try {
+        await updateVendorTransactionsFromSale(
+          cart,
+          user!.businessCode,
+          user!.businessName || '',
+          selectedBranch.branch_name,
+          settings.vendor_commission_enabled,
+          settings.default_commission_rate,
+          settings.minimum_commission_amount
+        );
+      } catch (error) {
+        console.error('Failed to update vendor transactions:', error);
+        // Log error but continue as this is not critical for the sale
+      }
 
       // Update customer order information if a customer is selected
       if (selectedCustomer) {
         console.log('Updating customer order information...');
-        await updateCustomerOrderInfo(
-          selectedCustomer.id,
-          user!.businessCode
-        ).catch(error => {
+        try {
+          await updateCustomerOrderInfo(
+            selectedCustomer.id,
+            user!.businessCode
+          );
+        } catch (error) {
           console.error('Failed to update customer info:', error);
-          // Don't throw here as this is not critical for the sale
-        });
+          // Log error but continue as this is not critical for the sale
+        }
       }
 
       // Refresh products list to show updated quantities
@@ -426,8 +575,8 @@ export function POSPage() {
           </div>
         </div>
 
-        <div className="flex-1 p-4 overflow-y-auto">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="flex-1 p-2 overflow-y-auto">
+          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
             {loading ? (
               <p className="col-span-full text-center py-8 text-gray-500">
                 {t.loading}
@@ -444,20 +593,60 @@ export function POSPage() {
               </div>
             ) : products
               .filter(product => 
-                product.product_name.includes(searchQuery) ||
+                product.product_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (product.barcode && product.barcode.includes(searchQuery))
               )
               .map((product) => {
                 // Check if product can be added to cart
                 const cartItem = cart.find(item => item.id === product.product_id.toString());
                 const currentQuantity = cartItem ? cartItem.quantity : 0;
-                const isDisabled = !product.trackable && currentQuantity >= product.quantity;
+                
+                console.log('Rendering Product:', {
+                  id: product.product_id,
+                  name: product.product_name,
+                  isVendorProduct: !!product.business_code_if_vendor,
+                  trackable: product.trackable,
+                  quantity: product.quantity,
+                  currentInCart: currentQuantity
+                });
+
+                // Apply quantity validation for both owner and vendor products
+                const isDisabled = (!product.trackable || product.business_code_if_vendor) && (
+                  currentQuantity >= product.quantity || 
+                  product.quantity <= 0
+                );
+
+                console.log('Product State:', {
+                  isDisabled,
+                  reason: isDisabled ? 'Out of stock or max quantity reached' : 'Available',
+                  availableQuantity: product.quantity,
+                  currentInCart: currentQuantity
+                });
                 
                 return (
                   <div
                     key={product.product_id}
                     onClick={() => {
                       if (!isDisabled) {
+                        console.log('Attempting to add product:', {
+                          id: product.product_id,
+                          name: product.product_name,
+                          currentQuantity,
+                          availableQuantity: product.quantity
+                        });
+
+                        // Validate quantity before adding to cart
+                        if ((!product.trackable || product.business_code_if_vendor) && currentQuantity >= product.quantity) {
+                          console.log('❌ Click validation failed:', {
+                            currentQuantity,
+                            availableQuantity: product.quantity,
+                            reason: 'Would exceed available stock'
+                          });
+                          setError(t.outOfStock.replace('{product}', product.product_name));
+                          return;
+                        }
+                        
+                        console.log('✅ Click validation passed, proceeding to add to cart');
                         addToCart({
                           id: product.product_id.toString(),
                           barcode: product.barcode || '',
@@ -465,53 +654,76 @@ export function POSPage() {
                           type: product.type,
                           price: calculatePriceWithCommission(product),
                           quantity: 1,
-                          category: '',
+                          category: product.category || '',
                           expiryDate: product.expiry_date || undefined,
-                          maxQuantity: product.trackable ? undefined : product.quantity,
-                          trackable: product.trackable
+                          // Set maxQuantity for all vendor products and non-trackable products
+                          maxQuantity: (!product.trackable || product.business_code_if_vendor) ? product.quantity : undefined,
+                          trackable: product.trackable,
+                          vendorId: product.business_code_if_vendor || '',
+                          vendorName: product.business_name_of_product || '',
+                          vendorPrice: product.vendorPrice || 0,
+                          business_code_if_vendor: product.business_code_if_vendor,
+                          business_name_if_vendor: product.business_name_of_product,
+                          imageUrl: product.image_url,
+                          description: product.description,
+                          // Add current quantity for validation
+                          _currentStock: product.quantity
                         });
                       }
                     }}
-                    className={`bg-white rounded-lg shadow p-4 transition-shadow ${
+                    className={`bg-white rounded-lg shadow p-2 transition-shadow flex flex-col ${
                       isDisabled 
                         ? 'opacity-50 cursor-not-allowed' 
                         : 'cursor-pointer hover:shadow-md'
                     }`}
                   >
-                    <div className="aspect-square bg-gray-100 rounded-md mb-3">
-                      {product.image_url && (
+                    <div className="aspect-square w-full bg-gray-100 rounded-md mb-2 overflow-hidden">
+                      {product.image_url ? (
                         <img
                           src={product.image_url}
                           alt={product.product_name}
-                          className="w-full h-full object-cover rounded-md"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
                         />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <ShoppingCart className="w-6 h-6" />
+                        </div>
                       )}
                     </div>
-                    <h3 className="font-medium">{product.product_name}</h3>
-                    <p className="text-sm text-gray-500">
-                      {product.type === 'food' ? t.food : t.product}
-                      {product.business_name_of_product && (
-                        <span className="mr-1 text-xs text-indigo-600">
-                          ({product.business_name_of_product})
+                    <div className="flex-1 min-h-0">
+                      <h3 className="font-medium text-sm leading-tight line-clamp-2">{product.product_name}</h3>
+                      <div className="mt-1 flex flex-wrap gap-1 text-xs">
+                        <span className="text-gray-500">
+                          {product.type === 'food' ? t.food : t.product}
                         </span>
+                        {product.business_name_of_product && (
+                          <span className="text-indigo-600">
+                            {product.business_name_of_product}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-indigo-600">
+                        {calculatePriceWithCommission(product).toFixed(2)} {t.currency}
+                      </div>
+                      {product.type === 'food' && product.expiry_date && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {t.expiryDate}: {new Date(product.expiry_date).toLocaleDateString()}
+                        </p>
                       )}
-                    </p>
-                    {product.type === 'food' && product.expiry_date && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        {t.expiryDate}: {new Date(product.expiry_date).toLocaleDateString()}
-                      </p>
-                    )}
-                    <p className="text-sm text-gray-500 mt-1">
-                      {t.inStock}: {product.quantity}
-                      {isDisabled && !product.trackable && (
-                        <span className="text-red-500 text-xs mr-1">
-                          {language === 'ar' ? ' - نفذت الكمية' : ' - Out of stock'}
+                      <div className="mt-0.5 flex justify-between items-center text-xs">
+                        <span className="text-gray-500">
+                          {t.inStock}: {product.quantity}
                         </span>
-                      )}
-                    </p>
-                    <p className="text-indigo-600 font-bold mt-1">
-                      {calculatePriceWithCommission(product).toFixed(3)} {t.currency}
-                    </p>
+                        {isDisabled && (!product.trackable || product.business_code_if_vendor) && (
+                          <span className="text-red-500">
+                            {language === 'ar' ? 'نفذت' : 'Out'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 );
               })}

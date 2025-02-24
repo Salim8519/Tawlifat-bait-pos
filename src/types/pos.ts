@@ -23,6 +23,27 @@ export interface CartItem extends Product {
   maxQuantity?: number; // Maximum quantity allowed (based on stock)
   trackable: boolean; // Whether the item is trackable
   notes?: string;
+
+  // Hidden metadata for future reference
+  _metadata?: {
+    vendor: {
+      code: string;
+      name: string;
+      business_code: string;
+      business_name: string;
+    };
+    sale: {
+      business_code: string;
+      business_name: string;
+      branch_name: string;
+      sale_date: string;
+    };
+    product: {
+      original_price: number;
+      vendor_price: number;
+      is_vendor_supplied: boolean;
+    };
+  };
 }
 
 export interface Customer {

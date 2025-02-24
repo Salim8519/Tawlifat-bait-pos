@@ -1,17 +1,13 @@
 import { supabase } from '../lib/supabase';
-import { createClient } from '@supabase/supabase-js';
 import type { Profile } from '../types/profile';
 
-// Create a supabase client with service role for admin operations
-const supabaseAdmin = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
-);
+// Remove admin client - we'll use standard supabase client
 
 export type WorkingStatus = 'working' | 'vacation' | 'sick' | 'absent' | 'suspended';
 
 export interface CashierProfile extends Profile {
   working_status: WorkingStatus;
+  business_name: string;
 }
 
 export interface CreateCashierData {
@@ -66,54 +62,56 @@ export async function checkUserExists(email: string): Promise<boolean> {
  * Create a new cashier with auth and profile
  */
 export async function createCashier(data: CreateCashierData): Promise<CashierProfile> {
-  let userId: string;
-
   try {
-    // First check if user exists
-    const { data: userData } = await supabaseAdmin.auth.admin.listUsers();
-    const existingUser = userData.users.find(u => u.email === data.email);
+    // Check if user already exists
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('his_email', data.email)
+      .maybeSingle();
 
-    if (existingUser) {
-      // User exists, update their metadata and password
-      userId = existingUser.id;
-      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-        userId,
-        {
-          password: data.password,
-          user_metadata: {
-            role: 'cashier',
-            business_code: data.business_code
-          }
-        }
-      );
+    if (existingProfile) {
+      throw new Error('A user with this email already exists');
+    }
 
-      if (updateError) {
-        throw updateError;
-      }
-    } else {
-      // Create new auth user
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-        email: data.email,
-        password: data.password,
-        email_confirm: true,
-        user_metadata: {
+    // Get business name from creator's profile
+    const { data: creatorProfile, error: creatorError } = await supabase
+      .from('profiles')
+      .select('business_name')
+      .eq('business_code', data.business_code)
+      .eq('role', 'owner')
+      .single();
+
+    if (creatorError) {
+      console.error('Error fetching business name:', creatorError);
+      throw creatorError;
+    }
+
+    // Create new auth user using public API
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      email: data.email,
+      password: data.password,
+      options: {
+        data: {
           role: 'cashier',
           business_code: data.business_code
         }
-      });
-
-      if (authError) {
-        throw authError;
       }
+    });
 
-      userId = authData.user.id;
+    if (signUpError) {
+      throw signUpError;
     }
 
-    // Create or update profile
-    const { data: profile, error: profileError } = await supabaseAdmin
+    if (!authData.user) {
+      throw new Error('Failed to create cashier account');
+    }
+
+    // Create profile using RLS policies
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .upsert({
-        user_id: userId,
+      .insert({
+        user_id: authData.user.id,
         full_name: data.full_name,
         his_email: data.email,
         main_branch: data.main_branch,
@@ -121,13 +119,14 @@ export async function createCashier(data: CreateCashierData): Promise<CashierPro
         salary: data.salary,
         role: 'cashier',
         business_code: data.business_code,
-        working_status: data.working_status
+        working_status: data.working_status,
+        business_name: creatorProfile.business_name // Add business name from creator's profile
       })
       .select()
       .single();
 
-
     if (profileError) {
+      console.error('Error creating cashier profile:', profileError);
       throw profileError;
     }
 
@@ -186,48 +185,38 @@ export async function updateCashierStatus(
 
 /**
  * Delete cashier from profiles table
+ * Note: Auth user will remain but won't have access to any data
  */
 export async function deleteCashier(userId: string): Promise<boolean> {
   try {
-    // First verify this is actually a cashier
-    const { data: profile, error: checkError } = await supabase
+    // First verify this is actually a cashier from our business
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, business_code')
       .eq('user_id', userId)
       .single();
 
-    if (checkError) {
-      console.error('Error checking cashier profile:', checkError);
-      throw checkError;
-    }
-
-    if (profile?.role !== 'cashier') {
-      throw new Error('User is not a cashier');
-    }
-
-    // Delete specific cashier profile
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .delete()
-      .match({
-        user_id: userId,
-        role: 'cashier'
-      });
-
     if (profileError) {
-      console.error('Error deleting cashier profile:', profileError);
+      console.error('Error fetching cashier profile:', profileError);
       throw profileError;
     }
 
-    // Delete the user from auth.users using admin client
-    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(
-      userId
-    );
-
-    if (authError) {
-      console.error('Error deleting auth user:', authError);
-      throw authError;
+    if (!profile || profile.role !== 'cashier') {
+      throw new Error('User is not a cashier');
     }
+
+    // Delete the profile - RLS policies will ensure only cashiers from the same business can be deleted
+    const { error: deleteError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('user_id', userId)
+      .eq('role', 'cashier');
+
+    if (deleteError) {
+      console.error('Error deleting cashier profile:', deleteError);
+      throw deleteError;
+    }
+
     return true;
   } catch (error) {
     console.error('Error in deleteCashier:', error);

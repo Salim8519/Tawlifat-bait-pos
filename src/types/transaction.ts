@@ -1,4 +1,4 @@
-export type TransactionType = 'sale' | 'return' | 'refund';
+export type TransactionType = 'sale' | 'return' | 'refund' | 'cash_addition' | 'cash_removal' | 'cash_return' | 'deposit' | 'withdraw';
 export type PaymentMethod = 'cash' | 'card' | 'online';
 
 export interface TransactionDetails {
@@ -18,6 +18,13 @@ export interface TransactionDetails {
   [key: string]: any;
 }
 
+export interface CashTransactionDetails extends TransactionDetails {
+  previous_total_cash: number;
+  new_total_cash: number;
+  cashier_name?: string;
+  tracking_id: string;
+}
+
 export interface Transaction {
   transaction_id?: string;
   business_code: string;
@@ -29,9 +36,10 @@ export interface Transaction {
   transaction_type: TransactionType;
   transaction_reason: string;
   amount: number;
+  owner_profit_from_this_transcation: number;
   currency: string;
   transaction_date: string;
-  details: TransactionDetails;
+  details: TransactionDetails | CashTransactionDetails;
 }
 
 export interface TransactionFilter {

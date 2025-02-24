@@ -7,7 +7,7 @@ import { format, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, startOfM
 import { arSA, enUS } from 'date-fns/locale';
 import { cashDrawerTranslations } from '../translations/cashDrawer';
 import { CashTransaction } from '../components/cash/CashTransaction';
-import { CashFlowCharts } from '../components/cash/CashFlowCharts';
+import { CashBalanceChart } from '../components/cash/CashBalanceChart';
 import { DateRangePicker } from '../components/common/DateRangePicker';
 import { getCashTrackingRecords, updateCashManually } from '../services/cashTrackingService';
 import type { CashTracking } from '../services/cashTrackingService';
@@ -198,6 +198,35 @@ export function CashDrawerPage() {
         throw new Error('No branch selected');
       }
 
+      // First record in transactions_overall
+      const { data: businessData } = await supabase
+        .from('profiles')
+        .select('business_name')
+        .eq('business_code', user!.businessCode)
+        .single();
+
+      const businessName = businessData?.business_name || user!.businessCode;
+
+      await supabase
+        .from('transactions_overall')
+        .insert({
+          business_code: user!.businessCode,
+          business_name: businessName,
+          branch_name: selectedBranch,
+          transaction_type: type === 'deposit' ? 'cash_addition' : 'cash_removal',
+          transaction_reason: reason,
+          amount: amount,
+          currency: 'OMR',
+          owner_profit_from_this_transcation: type === 'withdrawal' ? -amount : amount, // Match amount for deposits, negative for withdrawals
+          payment_method: 'cash',
+          details: {
+            type,
+            cashier: user!.name,
+            description: reason
+          }
+        });
+
+      // Then update cash tracking
       await updateCashManually(
         user!.businessCode,
         selectedBranch,
@@ -374,34 +403,41 @@ export function CashDrawerPage() {
           <div className="col-span-full grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-sm font-medium text-gray-500">{t.totalSales}</h3>
-              <p className="mt-2 text-3xl font-semibold text-gray-900">
+              <p className="mt-2 text-lg font-semibold text-gray-900">
                 {stats.totalSales.toFixed(3)} {t.currency}
               </p>
             </div>
             
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-sm font-medium text-gray-500">{t.totalReturns}</h3>
-              <p className="mt-2 text-3xl font-semibold text-red-600">
+              <p className="mt-2 text-lg font-semibold text-red-600">
                 {stats.totalReturns.toFixed(3)} {t.currency}
               </p>
             </div>
             
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-sm font-medium text-gray-500">{t.manualAdditions}</h3>
-              <p className="mt-2 text-3xl font-semibold text-green-600">
+              <p className="mt-2 text-lg font-semibold text-green-600">
                 {stats.totalManualAdditions.toFixed(3)} {t.currency}
               </p>
             </div>
             
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-sm font-medium text-gray-500">{t.manualRemovals}</h3>
-              <p className="mt-2 text-3xl font-semibold text-yellow-600">
+              <p className="mt-2 text-lg font-semibold text-yellow-600">
                 {stats.totalManualRemovals.toFixed(3)} {t.currency}
               </p>
             </div>
           </div>
 
-          <CashFlowCharts transactions={transactions} />
+          {/* Cash Balance Chart */}
+          <div className="bg-white rounded-lg shadow p-6 col-span-full">
+            <CashBalanceChart 
+              cashRecords={cashRecords}
+              language={language}
+            />
+          </div>
+
         </div>
 
         {/* Transaction History */}

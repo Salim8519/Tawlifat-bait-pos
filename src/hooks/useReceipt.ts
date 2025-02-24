@@ -104,7 +104,9 @@ export function useReceipt() {
         currentBranch.branch_name,
         settings.vendor_commission_enabled,
         settings.default_commission_rate,
-        settings.minimum_commission_amount
+        settings.minimum_commission_amount,
+        settings.tax_enabled,
+        settings.tax_rate
       );
 
       console.log('Transaction processed:', transaction);

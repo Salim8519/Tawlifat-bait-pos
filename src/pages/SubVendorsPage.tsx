@@ -4,7 +4,7 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useBusinessStore } from '../store/useBusinessStore';
 import { subVendorTranslations } from '../translations/subVendors';
-import { getVendorAssignments, checkVendorEmail, assignVendor, removeVendorAssignment, createVendor } from '../services/vendorService';
+import { getVendorAssignments, checkVendorEmail, assignVendor, removeVendorAssignment, createVendor, getAllVendors } from '../services/vendorService';
 
 interface VendorAssignment {
   assignment_id: number;
@@ -16,6 +16,14 @@ interface VendorAssignment {
   vendor_email_identifier: string;
 }
 
+interface VendorProfile {
+  user_id: string;
+  full_name: string;
+  phone_number: string;
+  vendor_business_name: string;
+  his_email: string;
+}
+
 export function SubVendorsPage() {
   const { language } = useLanguageStore();
   const { user } = useAuthStore();
@@ -23,12 +31,14 @@ export function SubVendorsPage() {
   const t = subVendorTranslations[language];
 
   const [vendors, setVendors] = useState<VendorAssignment[]>([]);
+  const [availableVendors, setAvailableVendors] = useState<VendorProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [vendorEmail, setVendorEmail] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('');
   const [showNewVendorForm, setShowNewVendorForm] = useState(false);
+  const [selectedVendor, setSelectedVendor] = useState<VendorProfile | null>(null);
   const [newVendorData, setNewVendorData] = useState<{
     full_name: string;
     phone_number: string;
@@ -42,15 +52,11 @@ export function SubVendorsPage() {
   });
   const [error, setError] = useState<string | null>(null);
   const [removingVendor, setRemovingVendor] = useState<VendorAssignment | null>(null);
-  const [addingBranchToVendor, setAddingBranchToVendor] = useState<{
-    email: string;
-    businessCode: string;
-    businessName: string;
-  } | null>(null);
 
   useEffect(() => {
     if (user?.businessCode) {
       loadVendors();
+      loadAvailableVendors();
     }
   }, [user?.businessCode]);
 
@@ -66,6 +72,15 @@ export function SubVendorsPage() {
     }
   };
 
+  const loadAvailableVendors = async () => {
+    try {
+      const data = await getAllVendors();
+      setAvailableVendors(data);
+    } catch (error) {
+      console.error('Error loading available vendors:', error);
+    }
+  };
+
   const handleAddVendor = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -76,7 +91,16 @@ export function SubVendorsPage() {
     }
 
     try {
-      if (showNewVendorForm) {
+      if (selectedVendor) {
+        // Use selected vendor's information
+        await assignVendor({
+          vendor_business_code: selectedVendor.business_code,
+          owner_business_code: user!.businessCode,
+          owner_business_name: '',
+          branch_name: selectedBranch,
+          vendor_email_identifier: selectedVendor.his_email || ''
+        });
+      } else if (showNewVendorForm) {
         // Create new vendor
         const newVendor = await createVendor({
           email: vendorEmail,
@@ -115,6 +139,7 @@ export function SubVendorsPage() {
       setVendorEmail('');
       setSelectedBranch('');
       setShowNewVendorForm(false);
+      setSelectedVendor(null);
       setNewVendorData({ full_name: '', phone_number: '', vendor_business_name: '', password: '' });
     } catch (error) {
       console.error('Error adding vendor:', error);
@@ -129,34 +154,6 @@ export function SubVendorsPage() {
       setRemovingVendor(null);
     } catch (error) {
       console.error('Error removing vendor:', error);
-    }
-  };
-
-  const handleAddBranchToVendor = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    
-    if (!selectedBranch) {
-      setError(t.selectBranchFirst);
-      return;
-    }
-
-    try {
-      await assignVendor({
-        vendor_business_code: addingBranchToVendor!.businessCode,
-        owner_business_code: user!.businessCode,
-        owner_business_name: '',
-        branch_name: selectedBranch,
-        vendor_email_identifier: addingBranchToVendor!.email
-      });
-
-      await loadVendors();
-      setAddingBranchToVendor(null);
-      setSelectedBranch('');
-      setError(null);
-    } catch (error) {
-      console.error('Error adding branch to vendor:', error);
-      setError(t.errorAddingBranch);
     }
   };
 
@@ -190,14 +187,14 @@ export function SubVendorsPage() {
   }, [vendors]);
 
   return (
-    <div className="space-y-6" dir={language === 'ar' ? 'rtl' : 'ltr'}>
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">{t.subVendors}</h1>
+    <div className="space-y-8 p-6 bg-gray-50" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+      <div className="flex justify-between items-center bg-white p-6 rounded-lg shadow-md">
+        <h1 className="text-3xl font-bold text-gray-800">{t.subVendors}</h1>
         <button
           onClick={() => setShowAddModal(true)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 flex items-center"
+          className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-offset-2 flex items-center text-lg font-semibold shadow-lg"
         >
-          <Plus className="w-5 h-5 ml-2" />
+          <Plus className="w-6 h-6 ml-2" />
           {t.addVendor}
         </button>
       </div>
@@ -231,98 +228,75 @@ export function SubVendorsPage() {
               {Array.from(groupedVendors.entries()).map(([email, assignments]) => {
                 const isExpanded = expandedVendors.has(email);
                 return (
-                  <div key={email} className="bg-white">
+                  <div key={email} className="bg-white hover:bg-blue-50 transition-colors duration-150">
                     <div 
-                      className="px-6 py-4 cursor-pointer hover:bg-gray-50 flex items-center justify-between"
+                      className="px-8 py-6 cursor-pointer flex items-center justify-between border-l-4 border-blue-500"
                       onClick={() => toggleVendor(email)}
                     >
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10">
-                          <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                            <Store className="h-6 w-6 text-indigo-600" />
+                        <div className="flex-shrink-0 h-16 w-16">
+                          <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center shadow-inner">
+                            <Store className="h-8 w-8 text-blue-600" />
                           </div>
                         </div>
-                        <div className="mr-4">
-                          <div className="text-sm text-gray-600">
-                            {assignments[0].profile?.["vendor_business _name"] && (
-                              <span className="text-lg font-semibold text-indigo-600">
-                                {assignments[0].profile?.["vendor_business _name"]}
-                              </span>
-                            )}
+                        <div className="mr-6">
+                          <div className="text-xl font-bold text-blue-700">
+                            {assignments[0].profile?.["vendor_business _name"] || t.unknownBusiness}
                           </div>
-                          <div className="text-sm font-medium text-gray-900 mt-1">
-                            {assignments[0].profile?.full_name || t.unknownBusiness}
-                          </div>
-                          <div className="text-xs text-gray-400">
+                          <div className="text-lg text-gray-600 mt-1">
                             {email}
                           </div>
                         </div>
                       </div>
                       {isExpanded ? (
-                        <ChevronUp className="h-5 w-5 text-gray-500" />
+                        <ChevronUp className="h-8 w-8 text-blue-600" />
                       ) : (
-                        <ChevronDown className="h-5 w-5 text-gray-500" />
+                        <ChevronDown className="h-8 w-8 text-blue-600" />
                       )}
                     </div>
                     
                     {isExpanded && (
-                      <div className="border-t border-gray-100">
-                        <div className="px-6 py-3 bg-gray-50">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="text-xs font-medium text-gray-500">{t.phone}</label>
-                              <p className="text-sm text-gray-900 mt-1">
-                                {assignments[0].profile?.phone_number || '-'}
+                      <div className="border-t-2 border-gray-100 bg-blue-50">
+                        <div className="px-8 py-4">
+                          <div className="grid grid-cols-2 gap-6">
+                            <div className="bg-white p-4 rounded-lg shadow-sm">
+                              <label className="text-sm font-semibold text-gray-600">{t.phone}</label>
+                              <p className="text-lg text-gray-900 mt-1 font-medium">
+                                {availableVendors.find(v => v.his_email === email)?.phone_number || '-'}
                               </p>
-                            </div>
-                            <div className="text-right">
-                              <button
-                                onClick={() => {
-                                  setAddingBranchToVendor({
-                                    email: assignments[0].vendor_email_identifier,
-                                    businessCode: assignments[0].vendor_business_code,
-                                    businessName: assignments[0].profile?.["vendor_business _name"] || ''
-                                  });
-                                  setSelectedBranch('');
-                                }}
-                                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                              >
-                                <Plus className="w-4 h-4 mr-1" />
-                                {t.addBranch}
-                              </button>
                             </div>
                           </div>
                         </div>
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
+                        <table className="min-w-full divide-y-2 divide-blue-100">
+                          <thead className="bg-blue-50">
                             <tr>
-                              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th scope="col" className="px-8 py-4 text-right text-sm font-bold text-blue-900 uppercase tracking-wider border-b-2 border-blue-200">
                                 {t.branch}
                               </th>
-                              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th scope="col" className="px-8 py-4 text-right text-sm font-bold text-blue-900 uppercase tracking-wider border-b-2 border-blue-200">
                                 {t.assignmentDate}
                               </th>
-                              <th scope="col" className="relative px-6 py-3">
+                              <th scope="col" className="relative px-8 py-4 border-b-2 border-blue-200">
                                 <span className="sr-only">{t.actions}</span>
                               </th>
                             </tr>
                           </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
+                          <tbody className="bg-white divide-y divide-blue-100">
                             {assignments.map((assignment) => (
-                              <tr key={assignment.assignment_id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <tr key={assignment.assignment_id} className="hover:bg-blue-50 transition-colors duration-150">
+                                <td className="px-8 py-5 whitespace-nowrap text-lg text-gray-900 font-medium border-r border-blue-100">
                                   {assignment.branch_name}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <td className="px-8 py-5 whitespace-nowrap text-lg text-gray-600 border-r border-blue-100">
                                   {new Date(assignment.date_of_assignment).toLocaleDateString(
                                     language === 'ar' ? 'ar' : 'en-US',
                                     { dateStyle: 'medium' }
                                   )}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
+                                <td className="px-8 py-5 whitespace-nowrap text-left text-lg font-medium">
                                   <button
                                     onClick={() => setRemovingVendor(assignment)}
-                                    className="text-red-600 hover:text-red-900"
+                                    className="text-red-600 hover:text-red-800 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-red-500"
                                   >
                                     {t.remove}
                                   </button>
@@ -350,43 +324,74 @@ export function SubVendorsPage() {
             </h2>
             
             <form onSubmit={handleAddVendor} className="space-y-4">
-              {!showNewVendorForm ? (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t.vendorEmail} <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      value={vendorEmail}
-                      onChange={(e) => setVendorEmail(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      dir="ltr"
-                    />
+              {!showNewVendorForm && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t.selectExistingVendor}
+                  </label>
+                  <select
+                    className="w-full border border-gray-300 rounded-md shadow-sm p-2"
+                    value={selectedVendor?.user_id || ''}
+                    onChange={(e) => {
+                      const vendor = availableVendors.find(v => v.user_id === e.target.value);
+                      setSelectedVendor(vendor || null);
+                      if (vendor) {
+                        setVendorEmail(vendor.his_email || '');
+                      }
+                    }}
+                  >
+                    <option value="">{t.selectVendor}</option>
+                    {availableVendors.map(vendor => (
+                      <option key={vendor.user_id} value={vendor.user_id}>
+                        {vendor["vendor_business _name"] || vendor.full_name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="mt-2">
+                    <span className="text-sm text-gray-500">{t.or}</span>
                   </div>
+                </div>
+              )}
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t.branch} <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={selectedBranch}
-                      onChange={(e) => setSelectedBranch(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      dir={language === 'ar' ? 'rtl' : 'ltr'}
-                    >
-                      <option value="">{t.selectBranch}</option>
-                      {branches.filter(branch => branch.is_active).map(branch => (
-                        <option key={branch.branch_id} value={branch.branch_name}>
-                          {branch.branch_name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              ) : (
+              {!selectedVendor && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t.vendorEmail}
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={vendorEmail}
+                    onChange={(e) => setVendorEmail(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md shadow-sm p-2"
+                    required
+                  />
+                </div>
+              )}
+
+              {!showNewVendorForm && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t.branch} <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={selectedBranch}
+                    onChange={(e) => setSelectedBranch(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    dir={language === 'ar' ? 'rtl' : 'ltr'}
+                  >
+                    <option value="">{t.selectBranch}</option>
+                    {branches.filter(branch => branch.is_active).map(branch => (
+                      <option key={branch.branch_id} value={branch.branch_name}>
+                        {branch.branch_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {showNewVendorForm && (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -484,6 +489,7 @@ export function SubVendorsPage() {
                     setShowNewVendorForm(false);
                     setNewVendorData({ full_name: '', phone_number: '', vendor_business_name: '', password: '' });
                     setSelectedBranch('');
+                    setSelectedVendor(null);
                   }}
                   className="px-4 py-2 text-gray-700 hover:text-gray-900"
                 >
@@ -494,97 +500,6 @@ export function SubVendorsPage() {
                   className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 >
                   {showNewVendorForm ? t.createAndAssign : t.add}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add Branch to Vendor Modal */}
-      {addingBranchToVendor && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-semibold mb-4">
-              {t.addBranchToVendor}
-            </h2>
-            
-            <form onSubmit={handleAddBranchToVendor} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t.vendorBusinessName}
-                </label>
-                <p className="text-sm text-gray-900">
-                  {addingBranchToVendor.businessName}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t.vendorEmail}
-                </label>
-                <p className="text-sm text-gray-900">
-                  {addingBranchToVendor.email}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t.branch} <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={selectedBranch}
-                  onChange={(e) => setSelectedBranch(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  dir={language === 'ar' ? 'rtl' : 'ltr'}
-                >
-                  <option value="">{t.selectBranch}</option>
-                  {branches
-                    .filter(branch => branch.is_active && 
-                      !vendors.some(v => 
-                        v.vendor_business_code === addingBranchToVendor.businessCode && 
-                        v.branch_name === branch.branch_name
-                      )
-                    )
-                    .map(branch => (
-                      <option key={branch.branch_id} value={branch.branch_name}>
-                        {branch.branch_name}
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              {error && (
-                <div className="rounded-md bg-red-50 p-4">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <AlertTriangle className="h-5 w-5 text-red-400" />
-                    </div>
-                    <div className="mr-3">
-                      <p className="text-sm text-red-700">{error}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-end space-x-2 space-x-reverse">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAddingBranchToVendor(null);
-                    setSelectedBranch('');
-                    setError(null);
-                  }}
-                  className="px-4 py-2 text-gray-700 hover:text-gray-900"
-                >
-                  {t.cancel}
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                >
-                  {t.add}
                 </button>
               </div>
             </form>

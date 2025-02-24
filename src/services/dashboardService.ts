@@ -7,64 +7,181 @@ export interface Branch {
   is_active: boolean;
 }
 
-export interface TransactionOverall {
+export type TransactionType = 
+  | 'vendor_withdrawal' 
+  | 'vendor_sale' 
+  | 'vendor_deposit' 
+  | 'sale' 
+  | 'rental_income'
+  | 'cash_addition'
+  | 'cash_removal';
+
+export type PaymentMethod = 
+  | 'online'
+  | 'card'
+  | 'cash'
+  | 'tax_deduction'
+  | string;
+
+export interface Transaction {
   transaction_id: string;
+  business_code: string;
+  business_name: string;
+  branch_name: string;
+  transaction_type: TransactionType;
+  payment_method: PaymentMethod;
+  amount: number;
+  owner_profit_from_this_transcation: number | null;
+  transaction_date: string;
   transaction_reason: string | null;
   vendor_name: string | null;
-  business_name: string;
-  details: any | null;
-  transaction_date: string;
-  amount: number;
-  currency: string;
-  business_code: string;
-  payment_method: string;
-  transaction_type: string;
-  branch_name: string;
   vendor_code: string | null;
+  currency: string;
+  details: any | null;
 }
 
-export interface BranchInsights {
-  branch: Branch;
-  totalTransactions: number;
+export interface TransactionSummary {
   totalAmount: number;
-  cashTransactions: number;
-  cardTransactions: number;
-  onlineTransactions: number;
-  recentTransactions: TransactionOverall[];
-}
-
-export interface TransactionInsights {
-  totalTransactions: number;
-  totalAmount: number;
-  averageAmount: number;
-  transactionsByType: {
-    [key: string]: {
-      count: number;
+  totalProfit: number;
+  transactionCount: number;
+  byPaymentMethod: {
+    [key in PaymentMethod]?: {
       amount: number;
+      count: number;
+      profit: number;
     };
   };
-  transactionsByPaymentMethod: {
-    [key: string]: {
-      count: number;
+  byTransactionType: {
+    [key in TransactionType]?: {
       amount: number;
+      count: number;
+      profit: number;
     };
   };
-  dailyTransactions: {
-    date: string;
-    count: number;
-    amount: number;
-  }[];
   topVendors: {
     vendor_name: string;
-    total_transactions: number;
     total_amount: number;
+    total_profit: number;
+    transaction_count: number;
   }[];
-  hourlyDistribution: {
-    hour: number;
-    count: number;
-    amount: number;
-  }[];
-  recentTransactions: any[];
+}
+
+export async function getTransactionSummary(
+  businessCode: string,
+  startDate: string,
+  endDate: string,
+  branchName?: string
+): Promise<TransactionSummary> {
+  try {
+    let query = supabase
+      .from('transactions_overall')
+      .select('*')
+      .eq('business_code', businessCode)
+      .gte('transaction_date', `${startDate}T00:00:00`)
+      .lte('transaction_date', `${endDate}T23:59:59`);
+
+    if (branchName && branchName !== 'all') {
+      query = query.eq('branch_name', branchName);
+    }
+
+    const { data: transactions, error } = await query;
+
+    if (error) {
+      console.error('Error fetching transactions:', error);
+      throw error;
+    }
+
+    const summary: TransactionSummary = {
+      totalAmount: 0,
+      totalProfit: 0,
+      transactionCount: 0,
+      byPaymentMethod: {
+        cash: { amount: 0, count: 0, profit: 0 },
+        card: { amount: 0, count: 0, profit: 0 },
+        online: { amount: 0, count: 0, profit: 0 },
+        tax_deduction: { amount: 0, count: 0, profit: 0 }
+      },
+      byTransactionType: {
+        vendor_withdrawal: { amount: 0, count: 0, profit: 0 },
+        vendor_sale: { amount: 0, count: 0, profit: 0 },
+        vendor_deposit: { amount: 0, count: 0, profit: 0 },
+        sale: { amount: 0, count: 0, profit: 0 },
+        rental_income: { amount: 0, count: 0, profit: 0 },
+        cash_addition: { amount: 0, count: 0, profit: 0 },
+        cash_removal: { amount: 0, count: 0, profit: 0 }
+      },
+      topVendors: []
+    };
+
+    const vendorStats: { [key: string]: { 
+      vendor_name: string;
+      total_amount: number;
+      total_profit: number;
+      transaction_count: number;
+    }} = {};
+
+    (transactions || []).forEach((t: Transaction) => {
+      // Convert string amounts to numbers and round to 2 decimal places
+      const amount = Number(Number(t.amount).toFixed(2));
+      const profit = Number(Number(t.owner_profit_from_this_transcation || amount).toFixed(2));
+      
+      // Update totals
+      summary.totalAmount = Number((summary.totalAmount + amount).toFixed(2));
+      summary.totalProfit = Number((summary.totalProfit + profit).toFixed(2));
+      summary.transactionCount++;
+
+      // Update payment method stats
+      if (t.payment_method) {
+        if (!summary.byPaymentMethod[t.payment_method]) {
+          summary.byPaymentMethod[t.payment_method] = { amount: 0, count: 0, profit: 0 };
+        }
+        const method = summary.byPaymentMethod[t.payment_method]!;
+        method.amount = Number((method.amount + amount).toFixed(2));
+        method.count++;
+        method.profit = Number((method.profit + profit).toFixed(2));
+      }
+
+      // Update transaction type stats
+      if (t.transaction_type) {
+        if (!summary.byTransactionType[t.transaction_type]) {
+          summary.byTransactionType[t.transaction_type] = { amount: 0, count: 0, profit: 0 };
+        }
+        const type = summary.byTransactionType[t.transaction_type]!;
+        type.amount = Number((type.amount + amount).toFixed(2));
+        type.count++;
+        type.profit = Number((type.profit + profit).toFixed(2));
+      }
+
+      // Update vendor stats - including business-owned products
+      const isBusinessProduct = !t.vendor_name && t.transaction_type === 'sale';
+      const vendorKey = isBusinessProduct ? 'BUSINESS_PRODUCTS' : t.vendor_name;
+      
+      if (vendorKey) {
+        if (!vendorStats[vendorKey]) {
+          vendorStats[vendorKey] = {
+            vendor_name: vendorKey,
+            total_amount: 0,
+            total_profit: 0,
+            transaction_count: 0
+          };
+        }
+        vendorStats[vendorKey].total_amount = Number((vendorStats[vendorKey].total_amount + amount).toFixed(2));
+        vendorStats[vendorKey].total_profit = Number((vendorStats[vendorKey].total_profit + profit).toFixed(2));
+        vendorStats[vendorKey].transaction_count++;
+      }
+    });
+
+    // Convert vendor stats to sorted array
+    summary.topVendors = Object.values(vendorStats)
+      .sort((a, b) => b.total_amount - a.total_amount)
+      .slice(0, 5);
+
+    console.log('Transaction Summary:', summary);
+    return summary;
+  } catch (error) {
+    console.error('Error in getTransactionSummary:', error);
+    throw error;
+  }
 }
 
 export async function getBranchesWithInsights(businessCode: string): Promise<Branch[]> {
@@ -86,12 +203,33 @@ export async function getBranchesWithInsights(businessCode: string): Promise<Bra
   return branches || [];
 }
 
+export async function getActiveBranches(businessCode: string): Promise<Branch[]> {
+  try {
+    const { data, error } = await supabase
+      .from('branches')
+      .select('*')
+      .eq('business_code', businessCode)
+      .eq('is_active', true)
+      .order('branch_name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching branches:', error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getActiveBranches:', error);
+    return [];
+  }
+}
+
 export async function getBranchInsights(
   businessCode: string,
   branchName: string,
   startDate?: string,
   endDate?: string
-): Promise<BranchInsights | null> {
+): Promise<TransactionSummary | null> {
   console.log('Getting branch insights:', {
     businessCode,
     branchName,
@@ -101,7 +239,6 @@ export async function getBranchInsights(
 
   try {
     // Get branch details
-    console.log('Fetching active branch details...');
     const { data: branch, error: branchError } = await supabase
       .from('branches')
       .select('*')
@@ -110,32 +247,23 @@ export async function getBranchInsights(
       .eq('is_active', true)
       .single();
 
-    if (branchError) {
-      console.error('Error fetching branch:', branchError);
-      throw branchError;
-    }
-
-    if (!branch) {
-      console.log('Active branch not found');
+    if (branchError || !branch) {
+      console.error('Error or no branch found:', branchError);
       return null;
     }
 
-    console.log('Found active branch:', branch);
-
-    // Build the base query
-    console.log('Fetching transactions...');
+    // Build the transactions query
     let query = supabase
       .from('transactions_overall')
       .select('*')
       .eq('business_code', businessCode)
       .eq('branch_name', branchName);
 
-    // Add date filters if provided
     if (startDate) {
-      query = query.gte('transaction_date', startDate);
+      query = query.gte('transaction_date', `${startDate}T00:00:00`);
     }
     if (endDate) {
-      query = query.lte('transaction_date', endDate);
+      query = query.lte('transaction_date', `${endDate}T23:59:59`);
     }
 
     // Get transactions
@@ -148,22 +276,73 @@ export async function getBranchInsights(
     }
 
     const transactionsList = transactions || [];
-    console.log('Found transactions:', transactionsList.length);
+    console.log(`Found ${transactionsList.length} transactions for branch ${branchName}`);
 
-    // Calculate insights
-    const insights: BranchInsights = {
-      branch,
-      totalTransactions: transactionsList.length,
-      totalAmount: transactionsList.reduce((sum, t) => sum + Number(t.amount), 0),
-      cashTransactions: transactionsList.filter(t => t.payment_method === 'cash').length,
-      cardTransactions: transactionsList.filter(t => t.payment_method === 'card').length,
-      onlineTransactions: transactionsList.filter(t => t.payment_method === 'online').length,
-      recentTransactions: transactionsList.slice(0, 5) // Get 5 most recent transactions
+    const summary: TransactionSummary = {
+      totalAmount: 0,
+      totalProfit: 0,
+      transactionCount: 0,
+      byPaymentMethod: {},
+      byTransactionType: {},
+      topVendors: []
     };
 
-    console.log('Calculated insights:', insights);
-    return insights;
+    const vendorStats: { [key: string]: { 
+      vendor_name: string;
+      total_amount: number;
+      total_profit: number;
+      transaction_count: number;
+    }} = {};
 
+    transactionsList.forEach((t: Transaction) => {
+      const profit = t.owner_profit_from_this_transcation ?? t.amount;
+      
+      // Update totals
+      summary.totalAmount += t.amount;
+      summary.totalProfit += profit;
+      summary.transactionCount++;
+
+      // Update payment method stats
+      if (!summary.byPaymentMethod[t.payment_method]) {
+        summary.byPaymentMethod[t.payment_method] = { amount: 0, count: 0, profit: 0 };
+      }
+      summary.byPaymentMethod[t.payment_method]!.amount += t.amount;
+      summary.byPaymentMethod[t.payment_method]!.count++;
+      summary.byPaymentMethod[t.payment_method]!.profit += profit;
+
+      // Update transaction type stats
+      if (!summary.byTransactionType[t.transaction_type]) {
+        summary.byTransactionType[t.transaction_type] = { amount: 0, count: 0, profit: 0 };
+      }
+      summary.byTransactionType[t.transaction_type]!.amount += t.amount;
+      summary.byTransactionType[t.transaction_type]!.count++;
+      summary.byTransactionType[t.transaction_type]!.profit += profit;
+
+      // Update vendor stats - including business-owned products
+      const isBusinessProduct = !t.vendor_name && t.transaction_type === 'sale';
+      const vendorKey = isBusinessProduct ? 'BUSINESS_PRODUCTS' : t.vendor_name;
+      
+      if (vendorKey) {
+        if (!vendorStats[vendorKey]) {
+          vendorStats[vendorKey] = {
+            vendor_name: vendorKey,
+            total_amount: 0,
+            total_profit: 0,
+            transaction_count: 0
+          };
+        }
+        vendorStats[vendorKey].total_amount += t.amount;
+        vendorStats[vendorKey].total_profit += profit;
+        vendorStats[vendorKey].transaction_count++;
+      }
+    });
+
+    // Convert vendor stats to sorted array
+    summary.topVendors = Object.values(vendorStats)
+      .sort((a, b) => b.total_amount - a.total_amount)
+      .slice(0, 5);
+
+    return summary;
   } catch (error) {
     console.error('Error getting branch insights:', error);
     throw error;
@@ -173,45 +352,44 @@ export async function getBranchInsights(
 export async function getCombinedBranchInsights(
   businessCode: string,
   startDate?: string,
-  endDate?: string
-): Promise<BranchInsights | null> {
+  endDate?: string,
+  language: string = 'en'
+): Promise<TransactionSummary | null> {
   console.log('Getting combined branch insights:', {
     businessCode,
     startDate,
-    endDate
+    endDate,
+    language
   });
 
   try {
-    // Get all active branches
+    // Get all active branches for this business
     const { data: branches, error: branchError } = await supabase
       .from('branches')
       .select('*')
       .eq('business_code', businessCode)
       .eq('is_active', true);
 
-    if (branchError) {
-      console.error('Error fetching branches:', branchError);
-      throw branchError;
-    }
-
-    if (!branches || branches.length === 0) {
-      console.log('No active branches found');
+    if (branchError || !branches || branches.length === 0) {
+      console.error('Error or no branches found:', branchError);
       return null;
     }
 
-    // Build the base query for all transactions
-    console.log('Fetching transactions for all branches...');
+    // Get branch names for the IN clause
+    const branchNames = branches.map(b => b.branch_name);
+
+    // Build the transactions query
     let query = supabase
       .from('transactions_overall')
       .select('*')
-      .eq('business_code', businessCode);
+      .eq('business_code', businessCode)
+      .in('branch_name', branchNames);
 
-    // Add date filters if provided
     if (startDate) {
-      query = query.gte('transaction_date', startDate);
+      query = query.gte('transaction_date', `${startDate}T00:00:00`);
     }
     if (endDate) {
-      query = query.lte('transaction_date', endDate);
+      query = query.lte('transaction_date', `${endDate}T23:59:59`);
     }
 
     // Get transactions
@@ -224,27 +402,75 @@ export async function getCombinedBranchInsights(
     }
 
     const transactionsList = transactions || [];
-    console.log('Found transactions:', transactionsList.length);
+    console.log(`Found ${transactionsList.length} transactions across ${branchNames.length} branches`);
 
-    // Calculate combined insights
-    const insights: BranchInsights = {
-      branch: {
-        branch_id: 'all',
-        branch_name: 'All Branches',
-        business_code: businessCode,
-        is_active: true
-      },
-      totalTransactions: transactionsList.length,
-      totalAmount: transactionsList.reduce((sum, t) => sum + Number(t.amount), 0),
-      cashTransactions: transactionsList.filter(t => t.payment_method === 'cash').length,
-      cardTransactions: transactionsList.filter(t => t.payment_method === 'card').length,
-      onlineTransactions: transactionsList.filter(t => t.payment_method === 'online').length,
-      recentTransactions: transactionsList.slice(0, 5) // Get 5 most recent transactions
+    const allBranchesText = language === 'ar' ? 'جميع الفروع' : 'All Branches';
+
+    const summary: TransactionSummary = {
+      totalAmount: 0,
+      totalProfit: 0,
+      transactionCount: 0,
+      byPaymentMethod: {},
+      byTransactionType: {},
+      topVendors: []
     };
 
-    console.log('Calculated combined insights:', insights);
-    return insights;
+    const vendorStats: { [key: string]: { 
+      vendor_name: string;
+      total_amount: number;
+      total_profit: number;
+      transaction_count: number;
+    }} = {};
 
+    transactionsList.forEach((t: Transaction) => {
+      const profit = t.owner_profit_from_this_transcation ?? t.amount;
+      
+      // Update totals
+      summary.totalAmount += t.amount;
+      summary.totalProfit += profit;
+      summary.transactionCount++;
+
+      // Update payment method stats
+      if (!summary.byPaymentMethod[t.payment_method]) {
+        summary.byPaymentMethod[t.payment_method] = { amount: 0, count: 0, profit: 0 };
+      }
+      summary.byPaymentMethod[t.payment_method]!.amount += t.amount;
+      summary.byPaymentMethod[t.payment_method]!.count++;
+      summary.byPaymentMethod[t.payment_method]!.profit += profit;
+
+      // Update transaction type stats
+      if (!summary.byTransactionType[t.transaction_type]) {
+        summary.byTransactionType[t.transaction_type] = { amount: 0, count: 0, profit: 0 };
+      }
+      summary.byTransactionType[t.transaction_type]!.amount += t.amount;
+      summary.byTransactionType[t.transaction_type]!.count++;
+      summary.byTransactionType[t.transaction_type]!.profit += profit;
+
+      // Update vendor stats - including business-owned products
+      const isBusinessProduct = !t.vendor_name && t.transaction_type === 'sale';
+      const vendorKey = isBusinessProduct ? 'BUSINESS_PRODUCTS' : t.vendor_name;
+      
+      if (vendorKey) {
+        if (!vendorStats[vendorKey]) {
+          vendorStats[vendorKey] = {
+            vendor_name: vendorKey,
+            total_amount: 0,
+            total_profit: 0,
+            transaction_count: 0
+          };
+        }
+        vendorStats[vendorKey].total_amount += t.amount;
+        vendorStats[vendorKey].total_profit += profit;
+        vendorStats[vendorKey].transaction_count++;
+      }
+    });
+
+    // Convert vendor stats to sorted array
+    summary.topVendors = Object.values(vendorStats)
+      .sort((a, b) => b.total_amount - a.total_amount)
+      .slice(0, 5);
+
+    return summary;
   } catch (error) {
     console.error('Error getting combined branch insights:', error);
     throw error;
@@ -285,10 +511,10 @@ export async function getOverallBusinessInsights(
       .eq('business_code', businessCode);
 
     if (startDate) {
-      query = query.gte('transaction_date', startDate);
+      query = query.gte('transaction_date', `${startDate}T00:00:00`);
     }
     if (endDate) {
-      query = query.lte('transaction_date', endDate);
+      query = query.lte('transaction_date', `${endDate}T23:59:59`);
     }
 
     const { data: transactions, error: transactionError } = await query;
@@ -301,24 +527,72 @@ export async function getOverallBusinessInsights(
     const transactionsList = transactions || [];
     console.log('Found transactions:', transactionsList.length);
 
-    const insights = {
-      totalBranches: branches?.length || 0,
-      totalTransactions: transactionsList.length,
-      totalAmount: transactionsList.reduce((sum, t) => sum + Number(t.amount), 0),
-      byPaymentMethod: {
-        cash: transactionsList.filter(t => t.payment_method === 'cash').length,
-        card: transactionsList.filter(t => t.payment_method === 'card').length,
-        online: transactionsList.filter(t => t.payment_method === 'online').length,
-      },
-      byType: {
-        sales: transactionsList.filter(t => t.transaction_type === 'sale').length,
-        returns: transactionsList.filter(t => t.transaction_type === 'return').length,
-        other: transactionsList.filter(t => !['sale', 'return'].includes(t.transaction_type)).length,
-      }
+    const summary: TransactionSummary = {
+      totalAmount: 0,
+      totalProfit: 0,
+      transactionCount: 0,
+      byPaymentMethod: {},
+      byTransactionType: {},
+      topVendors: []
     };
 
-    console.log('Calculated overall insights:', insights);
-    return insights;
+    const vendorStats: { [key: string]: { 
+      vendor_name: string;
+      total_amount: number;
+      total_profit: number;
+      transaction_count: number;
+    }} = {};
+
+    transactionsList.forEach((t: Transaction) => {
+      const profit = t.owner_profit_from_this_transcation ?? t.amount;
+      
+      // Update totals
+      summary.totalAmount += t.amount;
+      summary.totalProfit += profit;
+      summary.transactionCount++;
+
+      // Update payment method stats
+      if (!summary.byPaymentMethod[t.payment_method]) {
+        summary.byPaymentMethod[t.payment_method] = { amount: 0, count: 0, profit: 0 };
+      }
+      summary.byPaymentMethod[t.payment_method]!.amount += t.amount;
+      summary.byPaymentMethod[t.payment_method]!.count++;
+      summary.byPaymentMethod[t.payment_method]!.profit += profit;
+
+      // Update transaction type stats
+      if (!summary.byTransactionType[t.transaction_type]) {
+        summary.byTransactionType[t.transaction_type] = { amount: 0, count: 0, profit: 0 };
+      }
+      summary.byTransactionType[t.transaction_type]!.amount += t.amount;
+      summary.byTransactionType[t.transaction_type]!.count++;
+      summary.byTransactionType[t.transaction_type]!.profit += profit;
+
+      // Update vendor stats - including business-owned products
+      const isBusinessProduct = !t.vendor_name && t.transaction_type === 'sale';
+      const vendorKey = isBusinessProduct ? 'BUSINESS_PRODUCTS' : t.vendor_name;
+      
+      if (vendorKey) {
+        if (!vendorStats[vendorKey]) {
+          vendorStats[vendorKey] = {
+            vendor_name: vendorKey,
+            total_amount: 0,
+            total_profit: 0,
+            transaction_count: 0
+          };
+        }
+        vendorStats[vendorKey].total_amount += t.amount;
+        vendorStats[vendorKey].total_profit += profit;
+        vendorStats[vendorKey].transaction_count++;
+      }
+    });
+
+    // Convert vendor stats to sorted array
+    summary.topVendors = Object.values(vendorStats)
+      .sort((a, b) => b.total_amount - a.total_amount)
+      .slice(0, 5);
+
+    console.log('Calculated overall insights:', summary);
+    return summary;
 
   } catch (error) {
     console.error('Error getting overall business insights:', error);
@@ -331,7 +605,7 @@ export async function getDetailedTransactionInsights(
   branchName: string | null = null,
   startDate?: string,
   endDate?: string
-): Promise<TransactionInsights> {
+): Promise<TransactionSummary> {
   console.log('Getting detailed transaction insights:', {
     businessCode,
     branchName,
@@ -340,23 +614,35 @@ export async function getDetailedTransactionInsights(
   });
 
   try {
-    // Build the base query
+    // First get active branches for this business
+    const { data: branches } = await supabase
+      .from('branches')
+      .select('branch_name')
+      .eq('business_code', businessCode)
+      .eq('is_active', true);
+
+    if (!branches || branches.length === 0) {
+      throw new Error('No active branches found');
+    }
+
+    // Build the transactions query
     let query = supabase
       .from('transactions_overall')
       .select('*')
       .eq('business_code', businessCode);
 
-    // Add branch filter if specified
+    // If specific branch, filter by it, otherwise use all active branches
     if (branchName) {
       query = query.eq('branch_name', branchName);
+    } else {
+      query = query.in('branch_name', branches.map(b => b.branch_name));
     }
 
-    // Add date filters if provided
     if (startDate) {
-      query = query.gte('transaction_date', startDate);
+      query = query.gte('transaction_date', `${startDate}T00:00:00`);
     }
     if (endDate) {
-      query = query.lte('transaction_date', endDate);
+      query = query.lte('transaction_date', `${endDate}T23:59:59`);
     }
 
     const { data: transactions, error } = await query;
@@ -367,95 +653,74 @@ export async function getDetailedTransactionInsights(
     }
 
     const transactionsList = transactions || [];
+    console.log(`Found ${transactionsList.length} transactions for analysis`);
 
-    // Helper function to group transactions by a key
-    const groupBy = (key: string) => {
-      return transactionsList.reduce((acc, transaction) => {
-        const value = transaction[key];
-        if (!acc[value]) {
-          acc[value] = { count: 0, amount: 0 };
-        }
-        acc[value].count++;
-        acc[value].amount += Number(transaction.amount);
-        return acc;
-      }, {} as { [key: string]: { count: number; amount: number } });
+    const summary: TransactionSummary = {
+      totalAmount: 0,
+      totalProfit: 0,
+      transactionCount: 0,
+      byPaymentMethod: {},
+      byTransactionType: {},
+      topVendors: []
     };
 
-    // Calculate daily transactions
-    const dailyTransactions = transactionsList.reduce((acc, transaction) => {
-      const date = transaction.transaction_date.split('T')[0];
-      const existing = acc.find(d => d.date === date);
-      if (existing) {
-        existing.count++;
-        existing.amount += Number(transaction.amount);
-      } else {
-        acc.push({
-          date,
-          count: 1,
-          amount: Number(transaction.amount)
-        });
-      }
-      return acc;
-    }, [] as { date: string; count: number; amount: number }[])
-    .sort((a, b) => a.date.localeCompare(b.date));
+    const vendorStats: { [key: string]: { 
+      vendor_name: string;
+      total_amount: number;
+      total_profit: number;
+      transaction_count: number;
+    }} = {};
 
-    // Calculate hourly distribution
-    const hourlyDistribution = transactionsList.reduce((acc, transaction) => {
-      const hour = new Date(transaction.transaction_date).getHours();
-      const existing = acc.find(h => h.hour === hour);
-      if (existing) {
-        existing.count++;
-        existing.amount += Number(transaction.amount);
-      } else {
-        acc.push({
-          hour,
-          count: 1,
-          amount: Number(transaction.amount)
-        });
-      }
-      return acc;
-    }, [] as { hour: number; count: number; amount: number }[])
-    .sort((a, b) => a.hour - b.hour);
+    transactionsList.forEach((t: Transaction) => {
+      const profit = t.owner_profit_from_this_transcation ?? t.amount;
+      
+      // Update totals
+      summary.totalAmount += t.amount;
+      summary.totalProfit += profit;
+      summary.transactionCount++;
 
-    // Calculate top vendors
-    const vendorStats = transactionsList
-      .filter(t => t.vendor_name)
-      .reduce((acc, transaction) => {
-        const vendor = transaction.vendor_name;
-        if (!acc[vendor]) {
-          acc[vendor] = {
-            vendor_name: vendor,
-            total_transactions: 0,
-            total_amount: 0
+      // Update payment method stats
+      if (!summary.byPaymentMethod[t.payment_method]) {
+        summary.byPaymentMethod[t.payment_method] = { amount: 0, count: 0, profit: 0 };
+      }
+      summary.byPaymentMethod[t.payment_method]!.amount += t.amount;
+      summary.byPaymentMethod[t.payment_method]!.count++;
+      summary.byPaymentMethod[t.payment_method]!.profit += profit;
+
+      // Update transaction type stats
+      if (!summary.byTransactionType[t.transaction_type]) {
+        summary.byTransactionType[t.transaction_type] = { amount: 0, count: 0, profit: 0 };
+      }
+      summary.byTransactionType[t.transaction_type]!.amount += t.amount;
+      summary.byTransactionType[t.transaction_type]!.count++;
+      summary.byTransactionType[t.transaction_type]!.profit += profit;
+
+      // Update vendor stats - including business-owned products
+      const isBusinessProduct = !t.vendor_name && t.transaction_type === 'sale';
+      const vendorKey = isBusinessProduct ? 'BUSINESS_PRODUCTS' : t.vendor_name;
+      
+      if (vendorKey) {
+        if (!vendorStats[vendorKey]) {
+          vendorStats[vendorKey] = {
+            vendor_name: vendorKey,
+            total_amount: 0,
+            total_profit: 0,
+            transaction_count: 0
           };
         }
-        acc[vendor].total_transactions++;
-        acc[vendor].total_amount += Number(transaction.amount);
-        return acc;
-      }, {} as { [key: string]: { vendor_name: string; total_transactions: number; total_amount: number } });
+        vendorStats[vendorKey].total_amount += t.amount;
+        vendorStats[vendorKey].total_profit += profit;
+        vendorStats[vendorKey].transaction_count++;
+      }
+    });
 
-    const topVendors = Object.values(vendorStats)
+    // Convert vendor stats to sorted array
+    summary.topVendors = Object.values(vendorStats)
       .sort((a, b) => b.total_amount - a.total_amount)
       .slice(0, 5);
 
-    const insights: TransactionInsights = {
-      totalTransactions: transactionsList.length,
-      totalAmount: transactionsList.reduce((sum, t) => sum + Number(t.amount), 0),
-      averageAmount: transactionsList.length > 0
-        ? transactionsList.reduce((sum, t) => sum + Number(t.amount), 0) / transactionsList.length
-        : 0,
-      transactionsByType: groupBy('transaction_type'),
-      transactionsByPaymentMethod: groupBy('payment_method'),
-      dailyTransactions,
-      topVendors,
-      hourlyDistribution,
-      recentTransactions: transactionsList
-        .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
-        .slice(0, 5)
-    };
-
-    console.log('Calculated detailed insights:', insights);
-    return insights;
+    console.log('Calculated detailed insights:', summary);
+    return summary;
   } catch (error) {
     console.error('Error getting detailed transaction insights:', error);
     throw error;

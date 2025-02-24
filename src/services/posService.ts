@@ -28,7 +28,24 @@ export async function getAvailableProducts(businessCode: string, branchName?: st
   try {
     let query = supabase
       .from('products')
-      .select('*')
+      .select(`
+        product_id,
+        product_name,
+        barcode,
+        type,
+        price,
+        quantity,
+        trackable,
+        expiry_date,
+        business_code_of_owner,
+        business_code_if_vendor,
+        business_name_of_product,
+        branch_name,
+        current_page,
+        accepted,
+        image_url,
+        description
+      `)
       .eq('current_page', 'products')
       .eq('accepted', true)
       .gt('quantity', 0)
@@ -44,33 +61,6 @@ export async function getAvailableProducts(businessCode: string, branchName?: st
     if (error) {
       console.error('Error fetching available products:', error);
       throw error;
-    }
-
-    // Get all vendor assignments for this business
-    const { data: vendorAssignments, error: assignmentsError } = await supabase
-      .from('vendor_assignments')
-      .select('vendor_business_code, vendor_email_identifier')
-      .eq('owner_business_code', businessCode);
-
-    if (assignmentsError) {
-      console.error('Error fetching vendor assignments:', assignmentsError);
-      throw assignmentsError;
-    }
-
-    // Get vendor profiles if there are any assignments
-    let vendorProfiles = [];
-    if (vendorAssignments?.length > 0) {
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('business_code, "vendor_business _name"')
-        .in('his_email', vendorAssignments.map(a => a.vendor_email_identifier));
-
-      if (profilesError) {
-        console.error('Error fetching vendor profiles:', profilesError);
-        throw profilesError;
-      }
-
-      vendorProfiles = profiles || [];
     }
 
     // Filter and process products
@@ -90,12 +80,21 @@ export async function getAvailableProducts(businessCode: string, branchName?: st
         return {
           ...product,
           price: finalPrice,
-          vendorPrice: vendorPrice,
-          business_name_of_product: product.business_code_if_vendor 
-            ? vendorProfiles.find(p => p.business_code === product.business_code_if_vendor)?.["vendor_business _name"] || 'Unknown Vendor'
-            : ''
+          vendorPrice: vendorPrice
         };
       });
+
+    // Log vendor products for debugging
+    console.log('Vendor Products:', 
+      filteredProducts.filter(p => p.business_code_if_vendor)
+        .map(p => ({
+          name: p.product_name,
+          vendor_code: p.business_code_if_vendor,
+          vendor_name: p.business_name_of_product,
+          price: p.price,
+          vendor_price: p.vendorPrice
+        }))
+    );
 
     return filteredProducts || [];
   } catch (error) {

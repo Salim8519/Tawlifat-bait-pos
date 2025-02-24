@@ -12,7 +12,7 @@ interface Props {
 export function BranchPOSSelector({ onBranchChange }: Props) {
   const { language } = useLanguageStore();
   const { user } = useAuthStore();
-  const { branches, getCurrentBranch, setSelectedBranch } = useBusinessStore();
+  const { branches, setSelectedBranch } = useBusinessStore();
   const t = posTranslations[language];
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [isInitialized, setIsInitialized] = useState(false);
@@ -20,31 +20,52 @@ export function BranchPOSSelector({ onBranchChange }: Props) {
   useEffect(() => {
     const initializeBranch = () => {
       if (!isInitialized && branches.length > 0) {
-        // For cashiers, use their assigned branch
-        if (user?.role === 'cashier') {
-          const currentBranch = getCurrentBranch();
-          if (currentBranch) {
-            setSelectedBranchId(currentBranch.branch_id);
-            onBranchChange(currentBranch.branch_id);
-            setSelectedBranch(currentBranch.branch_id);
+        console.log('Initializing branch selection. User:', user);
+        console.log('Available branches:', branches);
+        
+        // For cashiers and managers, use their assigned branch if available
+        if ((user?.role === 'cashier' || user?.role === 'manager') && user?.main_branch) {
+          console.log(`${user.role} detected with main_branch:`, user.main_branch);
+          
+          // Find the branch that matches the assigned branch name
+          const assignedBranch = branches.find(b => {
+            const match = b.branch_name === user.main_branch && b.is_active;
+            console.log('Checking branch:', b.branch_name, 'Match:', match);
+            return match;
+          });
+
+          if (assignedBranch) {
+            console.log('Found assigned branch:', assignedBranch);
+            setSelectedBranchId(assignedBranch.branch_id);
+            onBranchChange(assignedBranch.branch_id);
+            setSelectedBranch(assignedBranch.branch_id);
+          } else {
+            console.log('Assigned branch not found or not active, selecting first active branch');
+            selectFirstActiveBranch();
           }
         } else {
-          // For other roles, select the first active branch
-          const firstActiveBranch = branches.find(b => b.is_active);
-          if (firstActiveBranch) {
-            setSelectedBranchId(firstActiveBranch.branch_id);
-            onBranchChange(firstActiveBranch.branch_id);
-            setSelectedBranch(firstActiveBranch.branch_id);
-          }
+          console.log('No main_branch assigned or different role, selecting first active branch');
+          selectFirstActiveBranch();
         }
         setIsInitialized(true);
       }
     };
 
+    const selectFirstActiveBranch = () => {
+      const firstActiveBranch = branches.find(b => b.is_active);
+      if (firstActiveBranch) {
+        console.log('Selected first active branch:', firstActiveBranch);
+        setSelectedBranchId(firstActiveBranch.branch_id);
+        onBranchChange(firstActiveBranch.branch_id);
+        setSelectedBranch(firstActiveBranch.branch_id);
+      }
+    };
+
     initializeBranch();
-  }, [branches, isInitialized, onBranchChange, user?.role, getCurrentBranch, setSelectedBranch]);
+  }, [branches, isInitialized, onBranchChange, user, setSelectedBranch]);
 
   const handleBranchChange = (branchId: string) => {
+    console.log('Branch selection changed to:', branchId);
     setSelectedBranchId(branchId);
     onBranchChange(branchId);
     setSelectedBranch(branchId);

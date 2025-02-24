@@ -41,7 +41,8 @@ export function useAuth() {
             email: data.user.email!,
             name: profile.full_name || '',
             role: profile.role || 'user',
-            businessCode: profile.business_code || ''
+            businessCode: profile.business_code || '',
+            main_branch: profile.main_branch || undefined
           });
         }
         return { user: data.user, profile };

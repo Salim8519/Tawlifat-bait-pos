@@ -31,8 +31,9 @@ export function VendorProductForm({
 
   const [type, setType] = useState<ProductType>(initialData?.type || 'non-food');
   const [expiryDate, setExpiryDate] = useState(initialData?.expiry_date || '');
+  const [productionDate, setProductionDate] = useState(initialData?.production_date || '');
   const [imageUrl, setImageUrl] = useState(initialData?.image_url || '');
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(initialData?.image_url || null);
   const [barcode, setBarcode] = useState(initialData?.barcode || '');
   const [error, setError] = useState<string | null>(null);
   const [selectedBranch, setSelectedBranch] = useState(initialData?.branch_name || '');
@@ -129,7 +130,8 @@ export function VendorProductForm({
       branch_name: selectedBranch,
       current_page: 'upcoming_products',
       accepted: false,
-      trackable: type === 'food'
+      trackable: type === 'food',
+      production_date: type === 'food' ? productionDate : undefined
     };
 
     if (type === 'food' && expiryDate) {
@@ -308,21 +310,38 @@ export function VendorProductForm({
 
         {/* Expiry Date for Food Products */}
         {type === 'food' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              {t.expiryDate} <span className="text-red-500">*</span>
-            </label>
-            <div className="relative mt-1">
-              <Calendar className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
-              <input
-                type="date"
-                value={expiryDate}
-                onChange={(e) => setExpiryDate(e.target.value)}
-                required
-                className="block w-full pr-10 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              />
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                {t.productionDate} <span className="text-red-500">*</span>
+              </label>
+              <div className="relative mt-1">
+                <Calendar className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
+                <input
+                  type="date"
+                  value={productionDate}
+                  onChange={(e) => setProductionDate(e.target.value)}
+                  required
+                  className="block w-full pr-10 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
             </div>
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                {t.expiryDate} <span className="text-red-500">*</span>
+              </label>
+              <div className="relative mt-1">
+                <Calendar className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
+                <input
+                  type="date"
+                  value={expiryDate}
+                  onChange={(e) => setExpiryDate(e.target.value)}
+                  required
+                  className="block w-full pr-10 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+          </>
         )}
 
         {/* Description */}

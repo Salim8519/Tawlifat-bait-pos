@@ -24,7 +24,10 @@ export const upcomingProductsTranslations = {
     reject: 'رفض',
     cancel: 'إلغاء',
     currency: 'ر.ع',
-    pendingReviewCount: '{count} منتج في انتظار المراجعة'
+    pendingReviewCount: '{count} منتج في انتظار المراجعة',
+    rejectionReasonRequired: 'يجب إدخال سبب الرفض',
+    delete: 'حذف',
+    confirmDelete: 'هل أنت متأكد من حذف هذا المنتج؟'
   },
   en: {
     upcomingProducts: 'Upcoming Products',
@@ -51,6 +54,9 @@ export const upcomingProductsTranslations = {
     reject: 'Reject',
     cancel: 'Cancel',
     currency: 'OMR',
-    pendingReviewCount: '{count} products pending review'
+    pendingReviewCount: '{count} products pending review',
+    rejectionReasonRequired: 'Please provide a reason for rejection',
+    delete: 'Delete',
+    confirmDelete: 'Are you sure you want to delete this product?'
   }
 };

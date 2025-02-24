@@ -21,70 +21,8 @@ interface Vendor {
   products: Product[];
 }
 
-// Mock data - replace with API calls
-const mockVendors: Vendor[] = [
-  {
-    id: '1',
-    name: 'سوبرماركت السعادة',
-    description: 'أفضل المنتجات الطازجة والمواد الغذائية',
-    rating: 4.5,
-    totalProducts: 150,
-    location: 'المعبيلة الجنوبية',
-    type: 'both',
-    isOpen: true,
-    openingHours: {
-      open: '08:00',
-      close: '22:00'
-    },
-    products: [
-      {
-        id: '1',
-        nameAr: 'تفاح أحمر',
-        type: 'food',
-        price: 2.99,
-        quantity: 100,
-        category: 'فواكه',
-        imageUrl: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6',
-        expiryDate: '2024-03-20'
-      },
-      {
-        id: '2',
-        nameAr: 'عصير برتقال',
-        type: 'food',
-        price: 1.99,
-        quantity: 50,
-        category: 'مشروبات',
-        imageUrl: 'https://images.unsplash.com/photo-1600271886742-f049cd451bba',
-        expiryDate: '2024-03-15'
-      }
-    ]
-  },
-  {
-    id: '2',
-    name: 'متجر البركة',
-    description: 'منتجات منزلية ومستلزمات يومية',
-    rating: 4.2,
-    totalProducts: 200,
-    location: 'الخوض',
-    type: 'non-food',
-    isOpen: true,
-    openingHours: {
-      open: '09:00',
-      close: '23:00'
-    },
-    products: [
-      {
-        id: '3',
-        nameAr: 'منظف متعدد الأغراض',
-        type: 'non-food',
-        price: 4.99,
-        quantity: 30,
-        category: 'منظفات',
-        imageUrl: 'https://images.unsplash.com/photo-1585342565162-3704ff9b221d'
-      }
-    ]
-  }
-];
+// Initialize empty vendors array - will be populated from API
+const vendors: Vendor[] = [];
 
 export function MultiVendorPage() {
   const { language } = useLanguageStore();
@@ -94,7 +32,7 @@ export function MultiVendorPage() {
   const [selectedType, setSelectedType] = useState<'all' | 'food' | 'non-food'>('all');
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
 
-  const filteredVendors = mockVendors.filter(vendor => {
+  const filteredVendors = vendors.filter(vendor => {
     const matchesSearch = 
       vendor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       vendor.description.toLowerCase().includes(searchQuery.toLowerCase()) ||

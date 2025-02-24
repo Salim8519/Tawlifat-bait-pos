@@ -41,6 +41,7 @@ export const productTranslations = {
     chooseImage: 'اختر صورة',
     uploadInstructions: 'PNG, JPG حتى 5MB',
     productType: 'نوع المنتج',
+    productTypeColumn: 'نوع المنتج',
     food: 'منتج غذائي',
     nonFood: 'منتج غير غذائي', 
     vendor: 'المورد',
@@ -80,7 +81,8 @@ export const productTranslations = {
     selectBusinessFirst: 'يجب اختيار متجر أولاً',
     selectBranch: 'اختر الفرع',
     sortAsc: 'ترتيب تصاعدي',
-    sortDesc: 'ترتيب تنازلي'
+    sortDesc: 'ترتيب تنازلي',
+    acceptanceStatus: 'حالة القبول',
   },
   en: {
     products: 'Products',
@@ -124,6 +126,7 @@ export const productTranslations = {
     chooseImage: 'Choose Image',
     uploadInstructions: 'PNG, JPG up to 5MB',
     productType: 'Product Type',
+    productTypeColumn: 'Product Type',
     food: 'Food',
     nonFood: 'Non-Food Product',
     vendor: 'Vendor',
@@ -163,6 +166,7 @@ export const productTranslations = {
     selectBusinessFirst: 'Please select a business first',
     selectBranch: 'Select branch',
     sortAsc: 'Sort ascending',
-    sortDesc: 'Sort descending'
+    sortDesc: 'Sort descending',
+    acceptanceStatus: 'Acceptance Status',
   }
 };

@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase';
-import { createClient } from '@supabase/supabase-js';
 import type { VendorProfile, VendorAssignment } from '../types/vendor';
 
 interface CreateVendorData {
@@ -10,11 +9,16 @@ interface CreateVendorData {
   phone_number: string;
 }
 
+interface VendorProfit {
+  vendorProfit: number;
+  ownerProfit: number;
+}
+
 // Create admin client for auth operations
-const supabaseAdmin = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
-);
+// const supabaseAdmin = createClient(
+//   import.meta.env.VITE_SUPABASE_URL,
+//   import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
+// );
 
 export async function getVendorAssignments(ownerBusinessCode: string): Promise<VendorAssignment[]> {
   try {
@@ -27,23 +31,22 @@ export async function getVendorAssignments(ownerBusinessCode: string): Promise<V
     if (assignmentError) throw assignmentError;
     if (!assignments) return [];
 
-    // Then get profiles for each vendor
+    // Get profiles for each vendor using their business code
     const { data: profiles, error: profileError } = await supabase
       .from('profiles')
-      .select('*')
-      .in('his_email', assignments.map(a => a.vendor_email_identifier));
+      .select('business_code,"vendor_business _name",full_name')
+      .in('business_code', assignments.map(a => a.vendor_business_code));
 
     if (profileError) throw profileError;
 
     // Combine the data
     const enrichedAssignments = assignments.map(assignment => {
-      const profile = profiles?.find(p => p.his_email === assignment.vendor_email_identifier);
+      const profile = profiles?.find(p => p.business_code === assignment.vendor_business_code);
       return {
         ...assignment,
         profile: profile ? {
           full_name: profile.full_name,
-          phone_number: profile.phone_number,
-          "vendor_business _name": profile["vendor_business _name"]
+          "vendor_business _name": profile['vendor_business _name'] || ''
         } : undefined
       };
     });
@@ -59,13 +62,11 @@ export async function getVendorAssignments(ownerBusinessCode: string): Promise<V
  * Create a new vendor with auth and profile
  */
 export async function createVendor(data: CreateVendorData): Promise<VendorProfile> {
-  let userId: string;
-
   try {
     // Generate a unique business code for the new vendor
     const vendorBusinessCode = `VND${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
-    // Check if profile or auth user already exists
+    // Check if profile already exists
     const { data: existingProfile } = await supabase
       .from('profiles')
       .select('*')
@@ -75,38 +76,32 @@ export async function createVendor(data: CreateVendorData): Promise<VendorProfil
     if (existingProfile) {
       throw new Error('A vendor with this email already exists');
     }
-    
-    try {
-      // Create new auth user
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-        email: data.email,
-        password: data.password,
-        email_confirm: true,
-        user_metadata: {
+
+    // Create new auth user using public API
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      email: data.email,
+      password: data.password,
+      options: {
+        data: {
           role: 'vendor',
           business_code: vendorBusinessCode
         }
-      });
-
-      if (authError) {
-        throw authError;
       }
+    });
 
-      userId = authData.user.id;
-    } catch (error) {
-      if (error.message?.includes('already been registered')) {
-        throw new Error('Email already registered. Please use a different email.');
-      }
-      throw error;
+    if (signUpError) {
+      throw signUpError;
     }
 
-    let profile;
-    
-    // Create new profile
-    const { data: newProfile, error: insertError } = await supabaseAdmin
+    if (!authData.user) {
+      throw new Error('Failed to create vendor account');
+    }
+
+    // Create new profile using RLS policies
+    const { data: newProfile, error: insertError } = await supabase
       .from('profiles')
       .insert({
-        user_id: userId,
+        user_id: authData.user.id,
         full_name: data.full_name,
         his_email: data.email,
         phone_number: data.phone_number,
@@ -122,21 +117,19 @@ export async function createVendor(data: CreateVendorData): Promise<VendorProfil
     if (insertError) {
       throw insertError;
     }
-    
-    profile = newProfile;
 
-    if (!profile) {
-      throw new Error('Failed to create/update vendor profile');
+    if (!newProfile) {
+      throw new Error('Failed to create vendor profile');
     }
 
     return {
-      business_code: profile.business_code,
-      full_name: profile.full_name || '',
-      vendor_business_name: profile["vendor_business _name"] || '',
-      his_email: profile.his_email || ''
+      business_code: newProfile.business_code,
+      full_name: newProfile.full_name || '',
+      vendor_business_name: newProfile["vendor_business _name"] || '',
+      his_email: newProfile.his_email || ''
     };
   } catch (error) {
-    console.error('Error in createVendor:', error, { existingUser });
+    console.error('Error in createVendor:', error);
     throw error;
   }
 }
@@ -335,6 +328,101 @@ export async function updateVendorProfile(
 
   if (error) {
     console.error('Error updating vendor profile:', error);
+    throw error;
+  }
+}
+
+export async function getVendorProfits(
+  businessCode: string,
+  vendorCode: string,
+  branchName: string,
+  month: number,
+  year: number
+): Promise<VendorProfit> {
+  try {
+    // Get vendor's profit from vendor_transactions
+    const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
+    const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+
+    const { data: vendorTransactions, error: vendorError } = await supabase
+      .from('vendor_transactions')
+      .select('amount')
+      .eq('business_code', businessCode)
+      .eq('vendor_code', vendorCode)
+      .eq('branch_name', branchName)
+      .eq('status', 'completed')
+      .gte('transaction_date', startDate)
+      .lte('transaction_date', endDate);
+
+    if (vendorError) throw vendorError;
+
+    // Get owner's profit from transactions_overall
+    const { data: ownerTransactions, error: ownerError } = await supabase
+      .from('transactions_overall')
+      .select('owner_profit_from_this_transcation')
+      .eq('business_code', businessCode)
+      .eq('vendor_code', vendorCode)
+      .eq('branch_name', branchName)
+      .gte('transaction_date', startDate)
+      .lte('transaction_date', endDate);
+
+    if (ownerError) throw ownerError;
+
+    // Calculate total profits
+    const vendorProfit = vendorTransactions?.reduce((sum, t) => sum + (Number(t.amount) || 0), 0) || 0;
+    const ownerProfit = ownerTransactions?.reduce((sum, t) => 
+      sum + (Number(t.owner_profit_from_this_transcation) || 0), 0) || 0;
+
+    return { vendorProfit, ownerProfit };
+  } catch (error) {
+    console.error('Error fetching vendor profits:', error);
+    throw error;
+  }
+}
+
+export async function getVendorTransactions(
+  businessCode: string,
+  vendorCode: string,
+  branchName: string
+) {
+  try {
+    const { data, error } = await supabase
+      .from('vendor_transactions')
+      .select('*')
+      .eq('business_code', businessCode)
+      .eq('vendor_code', vendorCode)
+      .eq('branch_name', branchName)
+      .eq('status', 'completed')
+      .order('transaction_date', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching vendor transactions:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get all available vendors
+ */
+export async function getAllVendors(): Promise<VendorProfile[]> {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'vendor')
+      .eq('is_vendor', true)
+      .order('vendor_business _name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching vendors:', error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getAllVendors:', error);
     throw error;
   }
 }

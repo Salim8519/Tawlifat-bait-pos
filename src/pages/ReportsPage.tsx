@@ -1,65 +1,169 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Download } from 'lucide-react';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { reportTranslations } from '../translations/reports';
+import { BranchSelector } from '../components/common/BranchSelector';
+import { ReportDateSelector, type ReportDatePeriod } from '../components/reports/ReportDateSelector';
+import { startOfDay, endOfDay, format, subDays, subWeeks, subMonths } from 'date-fns';
+import { getActiveBranches, type Branch } from '../services/dashboardService';
+import { useUserStore } from '../store/useUserStore';
+import { TransactionReport } from '../components/reports/transactions/TransactionReport';
+import { ReportSelector, type ReportType } from '../components/reports/ReportSelector';
 
 export function ReportsPage() {
   const { language } = useLanguageStore();
+  const { userProfile, fetchUserProfile } = useUserStore();
   const t = reportTranslations[language];
 
-  // Mock data - replace with actual API calls
-  const mockData = {
-    monthlySales: [],
-    topProducts: [],
-    customerAnalytics: [],
-    inventory: []
+  // States for branch and date selection
+  const [selectedBranch, setSelectedBranch] = useState<string>('all');
+  const [selectedPeriod, setSelectedPeriod] = useState<ReportDatePeriod>('today');
+  const [selectedReport, setSelectedReport] = useState<ReportType>('transactions');
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dateRange, setDateRange] = useState(() => {
+    const end = endOfDay(new Date());
+    const start = startOfDay(end);
+    return {
+      startDate: format(start, 'yyyy-MM-dd'),
+      endDate: format(end, 'yyyy-MM-dd')
+    };
+  });
+
+  // Ensure user profile is loaded
+  useEffect(() => {
+    if (!userProfile) {
+      fetchUserProfile();
+    }
+  }, [userProfile, fetchUserProfile]);
+
+  // Fetch branches
+  useEffect(() => {
+    const fetchBranches = async () => {
+      if (!userProfile?.business_code) {
+        if (!isLoading) setIsLoading(true);
+        return;
+      }
+      
+      try {
+        const branchesData = await getActiveBranches(userProfile.business_code);
+        setBranches(branchesData);
+        setSelectedBranch(userProfile.main_branch || 'all');
+      } catch (error) {
+        console.error('Error fetching branches:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBranches();
+  }, [userProfile?.business_code, userProfile?.main_branch]);
+
+  // Handle period changes
+  const handlePeriodChange = (period: ReportDatePeriod) => {
+    setSelectedPeriod(period);
+    
+    if (period !== 'custom') {
+      const end = endOfDay(new Date());
+      let start = startOfDay(end);
+
+      switch (period) {
+        case 'today':
+          start = startOfDay(end);
+          break;
+        case 'yesterday':
+          start = startOfDay(subDays(end, 1));
+          break;
+        case 'last7days':
+          start = startOfDay(subDays(end, 7));
+          break;
+        case 'last30days':
+          start = startOfDay(subDays(end, 30));
+          break;
+        case 'thisWeek':
+          start = startOfDay(subWeeks(end, 1));
+          break;
+        case 'thisMonth':
+          start = startOfDay(subMonths(end, 1));
+          break;
+      }
+
+      setDateRange({
+        startDate: format(start, 'yyyy-MM-dd'),
+        endDate: format(end, 'yyyy-MM-dd')
+      });
+    }
   };
 
+  // Handle custom date changes
+  const handleCustomDateChange = (startDate: string, endDate: string) => {
+    setDateRange({ startDate, endDate });
+  };
+
+  const renderReport = () => {
+    if (!userProfile?.business_code) return null;
+
+    const commonProps = {
+      businessCode: userProfile.business_code,
+      selectedBranch,
+      branches,
+      dateRange,
+      onBranchChange: setSelectedBranch
+    };
+
+    switch (selectedReport) {
+      case 'transactions':
+        return <TransactionReport {...commonProps} />;
+      case 'sales':
+      case 'products':
+      case 'inventory':
+        return (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold mb-4">{t.comingSoon}</h2>
+          </div>
+        );
+    }
+  };
+
+  if (!userProfile) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-gray-500">{t.loading}</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6" dir={language === 'ar' ? 'rtl' : 'ltr'}>
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">{t.reports}</h1>
-        <div className="flex space-x-4 space-x-reverse">
-          <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-            <Calendar className="w-5 h-5 ml-2" />
-            {t.selectDate}
-          </button>
-          <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-            <Download className="w-5 h-5 ml-2" />
-            {t.exportReport}
-          </button>
+    <div className="space-y-6 p-6">
+      <div className="space-y-4">
+        <ReportSelector
+          selectedReport={selectedReport}
+          onReportChange={setSelectedReport}
+        />
+        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+          <BranchSelector
+            branches={branches}
+            selectedBranch={selectedBranch}
+            onBranchChange={setSelectedBranch}
+          />
+          <ReportDateSelector
+            selectedPeriod={selectedPeriod}
+            onPeriodChange={handlePeriodChange}
+            onCustomDateChange={handleCustomDateChange}
+            customStartDate={dateRange.startDate}
+            customEndDate={dateRange.endDate}
+          />
         </div>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">{t.monthlySales}</h2>
-          <div className="aspect-[4/3] bg-gray-50 rounded-lg flex items-center justify-center">
-            <p className="text-gray-500">{t.chartComingSoon}</p>
-          </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <p className="text-gray-500">{t.loading}</p>
         </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">{t.topSellingProducts}</h2>
-          <div className="aspect-[4/3] bg-gray-50 rounded-lg flex items-center justify-center">
-            <p className="text-gray-500">{t.chartComingSoon}</p>
-          </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6">
+          {renderReport()}
         </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">{t.customerAnalytics}</h2>
-          <div className="aspect-[4/3] bg-gray-50 rounded-lg flex items-center justify-center">
-            <p className="text-gray-500">{t.chartComingSoon}</p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">{t.inventory}</h2>
-          <div className="aspect-[4/3] bg-gray-50 rounded-lg flex items-center justify-center">
-            <p className="text-gray-500">{t.chartComingSoon}</p>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
