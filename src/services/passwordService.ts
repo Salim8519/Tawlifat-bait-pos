@@ -25,11 +25,8 @@ export async function changePassword(currentPassword: string, newPassword: strin
 
 export async function resetPasswordRequest(email: string): Promise<{ error: string | null }> {
   try {
-    // Remove any trailing slashes from the origin
-    const baseUrl = window.location.origin.replace(/\/+$/, '');
-    
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${baseUrl}/update-password`,
+      redirectTo: `${window.location.origin}/reset-password`,
     });
 
     if (error) {
