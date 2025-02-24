@@ -34,22 +34,36 @@ export async function getVendorAssignments(ownerBusinessCode: string): Promise<V
     // Get profiles for each vendor using their business code
     const { data: profiles, error: profileError } = await supabase
       .from('profiles')
-      .select('business_code,"vendor_business _name",full_name')
+      .select('business_code,"vendor_business _name",full_name,business_name')
       .in('business_code', assignments.map(a => a.vendor_business_code));
 
     if (profileError) throw profileError;
 
+    // Add debug logging
+    console.log('Vendor Profiles:', profiles);
+
     // Combine the data
     const enrichedAssignments = assignments.map(assignment => {
       const profile = profiles?.find(p => p.business_code === assignment.vendor_business_code);
+      
+      // Add debug logging for each assignment
+      console.log('Processing assignment:', {
+        assignmentData: assignment,
+        foundProfile: profile,
+        vendorBusinessCode: assignment.vendor_business_code
+      });
+      
       return {
         ...assignment,
         profile: profile ? {
           full_name: profile.full_name,
-          "vendor_business _name": profile['vendor_business _name'] || ''
+          vendor_business_name: profile['vendor_business _name'] || profile.business_name || 'Unknown'
         } : undefined
       };
     });
+
+    // Log final enriched assignments
+    console.log('Enriched Assignments:', enrichedAssignments);
 
     return enrichedAssignments;
   } catch (error) {
