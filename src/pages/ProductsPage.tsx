@@ -16,7 +16,7 @@ import { productTranslations } from '../translations/products';
 import { getProducts, createProduct, updateProduct, deleteProduct } from '../services/productService';
 import type { Product, ProductFilter } from '../types/product'; 
 
-type SortField = 'product_name' | 'business_name_of_product' | 'type' | 'price' | 'quantity' | 'expiry_date' | 'branch_name';
+type SortField = 'product_name' | 'business_name_of_product' | 'type' | 'price' | 'quantity' | 'production_date' | 'expiry_date' | 'branch_name';
 type SortDirection = 'asc' | 'desc';
 
 // Color palette for vendor badges
@@ -118,6 +118,12 @@ export function ProductsPage() {
           break;
         case 'quantity':
           comparison = a.quantity - b.quantity;
+          break;
+        case 'production_date':
+          if (!a.production_date && !b.production_date) comparison = 0;
+          else if (!a.production_date) comparison = 1;
+          else if (!b.production_date) comparison = -1;
+          else comparison = new Date(a.production_date).getTime() - new Date(b.production_date).getTime();
           break;
         case 'expiry_date':
           if (!a.expiry_date && !b.expiry_date) comparison = 0;
@@ -425,6 +431,9 @@ export function ProductsPage() {
                   <SortableHeader field="quantity">
                     {t.quantity}
                   </SortableHeader>
+                  <SortableHeader field="production_date">
+                    {t.productionDate}
+                  </SortableHeader>
                   <SortableHeader field="expiry_date">
                     {t.expiryDate}
                   </SortableHeader>
@@ -505,6 +514,18 @@ export function ProductsPage() {
                           }`}>
                             {product.quantity}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {product.production_date ? (
+                            <div className="text-sm text-gray-900">
+                              {new Date(product.production_date).toLocaleDateString(
+                                language === 'ar' ? 'ar' : 'en-US',
+                                { dateStyle: 'medium' }
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-500">-</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {product.type === 'food' && product.expiry_date ? (

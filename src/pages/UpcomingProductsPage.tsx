@@ -267,6 +267,9 @@ export function UpcomingProductsPage() {
                     {t.category}
                   </th>
                   <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    {t.productionDate}
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {t.expiryDate}
                   </th>
                   <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -330,6 +333,18 @@ export function UpcomingProductsPage() {
                       <div className="text-sm text-gray-900">
                         {product.type === 'food' ? t.food : t.nonFood}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {product.production_date ? (
+                        <div className="text-sm text-gray-900">
+                          {new Date(product.production_date).toLocaleDateString(
+                            language === 'ar' ? 'ar' : 'en-US',
+                            { dateStyle: 'medium' }
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-500">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {product.type === 'food' && product.expiry_date ? (

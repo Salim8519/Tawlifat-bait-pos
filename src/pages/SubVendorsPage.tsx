@@ -241,7 +241,7 @@ export function SubVendorsPage() {
                         </div>
                         <div className="mr-6">
                           <div className="text-xl font-bold text-blue-700">
-                            {assignments[0].profile?.["vendor_business _name"] || t.unknownBusiness}
+                            {assignments[0].profile?.vendor_business_name || t.unknownBusiness}
                           </div>
                           <div className="text-lg text-gray-600 mt-1">
                             {email}
@@ -343,7 +343,7 @@ export function SubVendorsPage() {
                     <option value="">{t.selectVendor}</option>
                     {availableVendors.map(vendor => (
                       <option key={vendor.user_id} value={vendor.user_id}>
-                        {vendor["vendor_business _name"] || vendor.full_name}
+                        {vendor.vendor_business_name || vendor.full_name}
                       </option>
                     ))}
                   </select>

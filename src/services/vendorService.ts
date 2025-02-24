@@ -31,41 +31,34 @@ export async function getVendorAssignments(ownerBusinessCode: string): Promise<V
     if (assignmentError) throw assignmentError;
     if (!assignments) return [];
 
-    // Get profiles for each vendor using their business code
+    // Get all unique vendor business codes
+    const vendorBusinessCodes = [...new Set(assignments.map(a => a.vendor_business_code))];
+
+    // Get profiles for all vendors using text-based matching
     const { data: profiles, error: profileError } = await supabase
       .from('profiles')
-      .select('business_code,"vendor_business _name",full_name,business_name')
-      .in('business_code', assignments.map(a => a.vendor_business_code));
+      .select('business_code, "vendor_business _name", full_name, phone_number, his_email')
+      .in('business_code', vendorBusinessCodes)
+      .eq('is_vendor', true);
 
     if (profileError) throw profileError;
+    if (!profiles) return assignments;
 
-    // Add debug logging
-    console.log('Vendor Profiles:', profiles);
-
-    // Combine the data
-    const enrichedAssignments = assignments.map(assignment => {
-      const profile = profiles?.find(p => p.business_code === assignment.vendor_business_code);
-      
-      // Add debug logging for each assignment
-      console.log('Processing assignment:', {
-        assignmentData: assignment,
-        foundProfile: profile,
-        vendorBusinessCode: assignment.vendor_business_code
-      });
+    // Map assignments with profile data using text-based matching
+    return assignments.map(assignment => {
+      const vendorProfile = profiles.find(p => p.business_code === assignment.vendor_business_code);
       
       return {
         ...assignment,
-        profile: profile ? {
-          full_name: profile.full_name,
-          vendor_business_name: profile['vendor_business _name'] || profile.business_name || 'Unknown'
+        profile: vendorProfile ? {
+          vendor_business_name: vendorProfile["vendor_business _name"] || vendorProfile.full_name || 'Unknown',
+          full_name: vendorProfile.full_name,
+          phone_number: vendorProfile.phone_number,
+          his_email: vendorProfile.his_email
         } : undefined
       };
     });
 
-    // Log final enriched assignments
-    console.log('Enriched Assignments:', enrichedAssignments);
-
-    return enrichedAssignments;
   } catch (error) {
     console.error('Error fetching vendor assignments:', error);
     throw error;

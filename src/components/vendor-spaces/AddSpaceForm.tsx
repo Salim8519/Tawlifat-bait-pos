@@ -162,14 +162,15 @@ export function AddSpaceForm({ businessCode, onClose, onSuccess, editingRental }
           >
             <option value="">{t.selectVendorPlaceholder}</option>
             {[...new Set(vendors.map(v => v.vendor_business_code))].map((vendorCode) => {
-              const vendor = vendors.find(v => v.vendor_business_code === vendorCode);
+              const vendorAssignments = vendors.filter(v => v.vendor_business_code === vendorCode);
+              const vendorProfile = vendorAssignments[0]?.profile;
               return (
                 <option 
                   key={vendorCode} 
                   value={vendorCode}
                   className="py-2"
                 >
-                  {vendor?.profile?.vendor_business_name || t.unknown}
+                  {vendorProfile?.vendor_business_name || vendorProfile?.full_name || t.unknown}
                 </option>
               );
             })}
