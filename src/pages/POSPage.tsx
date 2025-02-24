@@ -786,15 +786,16 @@ export function POSPage() {
           )}
         </div>
 
-        <DiscountSection
+        {/* Hide Discount Section */}
+        {/* <DiscountSection
           subtotal={calculateSubtotal()}
           onApplyDiscount={handleApplyDiscount}
           onApplyCoupon={handleApplyCoupon}
-          appliedDiscount={appliedDiscount || undefined}
-          appliedCoupon={appliedCoupon || undefined}
+          appliedDiscount={appliedDiscount}
+          appliedCoupon={appliedCoupon}
           error={discountError}
-        />
-        
+        /> */}
+
         <PaymentMethods
           selectedMethod={paymentMethod}
           onMethodChange={setPaymentMethod}

@@ -228,15 +228,31 @@ export function SubVendorsPage() {
               {Array.from(groupedVendors.entries()).map(([email, assignments]) => {
                 const isExpanded = expandedVendors.has(email);
                 return (
-                  <div key={email} className="bg-white hover:bg-blue-50 transition-colors duration-150">
+                  <div key={email} className={`bg-white transition-all duration-200 ${
+                    isExpanded 
+                      ? 'ring-4 ring-blue-400 rounded-lg shadow-xl m-4' 
+                      : 'hover:bg-blue-50'
+                  }`}>
                     <div 
-                      className="px-8 py-6 cursor-pointer flex items-center justify-between border-l-4 border-blue-500"
+                      className={`px-8 py-6 cursor-pointer flex items-center justify-between ${
+                        isExpanded 
+                          ? 'border-l-8 border-blue-600 bg-blue-100 rounded-t-lg' 
+                          : 'border-l-4 border-blue-400'
+                      }`}
                       onClick={() => toggleVendor(email)}
                     >
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-16 w-16">
-                          <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center shadow-inner">
-                            <Store className="h-8 w-8 text-blue-600" />
+                          <div className={`h-16 w-16 rounded-full ${
+                            isExpanded 
+                              ? 'bg-blue-200 scale-110 transform' 
+                              : 'bg-blue-100'
+                            } flex items-center justify-center shadow-inner transition-transform duration-200`}>
+                            <Store className={`h-8 w-8 ${
+                              isExpanded 
+                                ? 'text-blue-800' 
+                                : 'text-blue-600'
+                            }`} />
                           </div>
                         </div>
                         <div className="mr-6">
@@ -256,55 +272,59 @@ export function SubVendorsPage() {
                     </div>
                     
                     {isExpanded && (
-                      <div className="border-t-2 border-gray-100 bg-blue-50">
+                      <div className="border-t-2 border-blue-300 bg-gradient-to-b from-blue-100 to-white rounded-b-lg">
                         <div className="px-8 py-4">
                           <div className="grid grid-cols-2 gap-6">
-                            <div className="bg-white p-4 rounded-lg shadow-sm">
-                              <label className="text-sm font-semibold text-gray-600">{t.phone}</label>
+                            <div className="bg-white p-4 rounded-lg shadow-md border-2 border-blue-300 transform transition-all duration-200">
+                              <label className="text-sm font-semibold text-blue-800">{t.phone}</label>
                               <p className="text-lg text-gray-900 mt-1 font-medium">
                                 {availableVendors.find(v => v.his_email === email)?.phone_number || '-'}
                               </p>
                             </div>
                           </div>
                         </div>
-                        <table className="min-w-full divide-y-2 divide-blue-100">
-                          <thead className="bg-blue-50">
-                            <tr>
-                              <th scope="col" className="px-8 py-4 text-right text-sm font-bold text-blue-900 uppercase tracking-wider border-b-2 border-blue-200">
-                                {t.branch}
-                              </th>
-                              <th scope="col" className="px-8 py-4 text-right text-sm font-bold text-blue-900 uppercase tracking-wider border-b-2 border-blue-200">
-                                {t.assignmentDate}
-                              </th>
-                              <th scope="col" className="relative px-8 py-4 border-b-2 border-blue-200">
-                                <span className="sr-only">{t.actions}</span>
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-blue-100">
-                            {assignments.map((assignment) => (
-                              <tr key={assignment.assignment_id} className="hover:bg-blue-50 transition-colors duration-150">
-                                <td className="px-8 py-5 whitespace-nowrap text-lg text-gray-900 font-medium border-r border-blue-100">
-                                  {assignment.branch_name}
-                                </td>
-                                <td className="px-8 py-5 whitespace-nowrap text-lg text-gray-600 border-r border-blue-100">
-                                  {new Date(assignment.date_of_assignment).toLocaleDateString(
-                                    language === 'ar' ? 'ar' : 'en-US',
-                                    { dateStyle: 'medium' }
-                                  )}
-                                </td>
-                                <td className="px-8 py-5 whitespace-nowrap text-left text-lg font-medium">
-                                  <button
-                                    onClick={() => setRemovingVendor(assignment)}
-                                    className="text-red-600 hover:text-red-800 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-red-500"
-                                  >
-                                    {t.remove}
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                        <div className="px-4">
+                          <div className="bg-white rounded-lg border-2 border-blue-300 overflow-hidden shadow-lg">
+                            <table className="min-w-full divide-y-2 divide-blue-200">
+                              <thead className="bg-gradient-to-r from-blue-100 to-blue-50">
+                                <tr>
+                                  <th scope="col" className="px-8 py-4 text-right text-sm font-bold text-blue-900 uppercase tracking-wider border-b-2 border-blue-300">
+                                    {t.branch}
+                                  </th>
+                                  <th scope="col" className="px-8 py-4 text-right text-sm font-bold text-blue-900 uppercase tracking-wider border-b-2 border-blue-300">
+                                    {t.assignmentDate}
+                                  </th>
+                                  <th scope="col" className="relative px-8 py-4 border-b-2 border-blue-300">
+                                    <span className="sr-only">{t.actions}</span>
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-blue-200">
+                                {assignments.map((assignment) => (
+                                  <tr key={assignment.assignment_id} className="hover:bg-blue-50 transition-all duration-200">
+                                    <td className="px-8 py-5 whitespace-nowrap text-lg text-gray-900 font-medium border-r border-blue-200">
+                                      {assignment.branch_name}
+                                    </td>
+                                    <td className="px-8 py-5 whitespace-nowrap text-lg text-gray-600 border-r border-blue-200">
+                                      {new Date(assignment.date_of_assignment).toLocaleDateString(
+                                        language === 'ar' ? 'ar' : 'en-US',
+                                        { dateStyle: 'medium' }
+                                      )}
+                                    </td>
+                                    <td className="px-8 py-5 whitespace-nowrap text-left text-lg font-medium">
+                                      <button
+                                        onClick={() => setRemovingVendor(assignment)}
+                                        className="text-red-600 hover:text-red-800 hover:bg-red-50 px-4 py-2 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+                                      >
+                                        {t.remove}
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
