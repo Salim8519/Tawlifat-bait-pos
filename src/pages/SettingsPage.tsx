@@ -19,12 +19,20 @@ export function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const { upload, isUploading } = useImageUpload();
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [logoTimestamp, setLogoTimestamp] = useState<number>(Date.now());
+  const [forceUpdate, setForceUpdate] = useState(0);
+
+  const refreshImage = () => setForceUpdate(prev => prev + 1);
+
+  const getUncachedLogoUrl = (url: string) => {
+    if (!url) return null;
+    const timestamp = new Date().getTime();
+    return `${url}?t=${timestamp}`;
+  };
 
   useEffect(() => {
     if (settings?.url_logo_of_business) {
       setLogoPreview(settings.url_logo_of_business);
-      setLogoTimestamp(Date.now());
+      refreshImage();
     }
   }, [settings?.url_logo_of_business]);
 
@@ -34,11 +42,9 @@ export function SettingsPage() {
     setError(null);
 
     try {
-      // Show preview immediately
       const previewUrl = URL.createObjectURL(file);
       setLogoPreview(previewUrl);
 
-      // Upload to image service
       const uploadedUrl = await upload(file);
       console.log('Uploaded logo URL:', uploadedUrl);
 
@@ -47,29 +53,26 @@ export function SettingsPage() {
       }
 
       if (settings) {
-        // Update settings immediately after successful upload
         setSettings({
           ...settings,
           url_logo_of_business: uploadedUrl
         });
 
-        // Force image refresh
-        setLogoTimestamp(Date.now());
-
-        // Save to database
         await updateBusinessSettings(user!.businessCode, {
           url_logo_of_business: uploadedUrl
         });
 
+        setLogoPreview(uploadedUrl);
+        refreshImage();
         console.log('Logo URL saved to settings');
       }
     } catch (err) {
       console.error('Error uploading logo:', err);
       setError(t.errorUploadingLogo);
       setLogoPreview(null);
-      // Reset logo preview on error
       if (settings?.url_logo_of_business) {
         setLogoPreview(settings.url_logo_of_business);
+        refreshImage();
       }
     }
   };
@@ -97,7 +100,6 @@ export function SettingsPage() {
 
       await updateBusinessSettings(user.businessCode, updates);
 
-      // Reload settings to confirm update
       const updatedSettings = await getBusinessSettings(user.businessCode);
       setSettings(updatedSettings);
       alert(t.settingsSaved);
@@ -158,9 +160,10 @@ export function SettingsPage() {
                 {logoPreview ? (
                   <div className="relative w-full h-full">
                     <img
-                      src={`${logoPreview}?t=${logoTimestamp}`}
+                      src={getUncachedLogoUrl(logoPreview)}
                       alt="Business logo"
                       className="w-full h-full object-contain"
+                      key={forceUpdate}
                     />
                     <button
                       type="button"
