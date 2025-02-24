@@ -22,7 +22,7 @@ export function ResetPasswordPage() {
 
     try {
       // Get the site URL - use SITE_URL env var if available, otherwise use window.location.origin
-      const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+      const siteUrl = (import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/+$/, '');
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${siteUrl}/update-password`,
       });
