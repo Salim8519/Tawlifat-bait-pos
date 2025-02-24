@@ -52,6 +52,7 @@ export function SubVendorsPage() {
   });
   const [error, setError] = useState<string | null>(null);
   const [removingVendor, setRemovingVendor] = useState<VendorAssignment | null>(null);
+  const [selectedFilterBranch, setSelectedFilterBranch] = useState<string>('');
 
   useEffect(() => {
     if (user?.businessCode) {
@@ -158,8 +159,9 @@ export function SubVendorsPage() {
   };
 
   const filteredVendors = vendors.filter(vendor =>
-    vendor.vendor_email_identifier.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    vendor.branch_name.toLowerCase().includes(searchQuery.toLowerCase())
+    (vendor.vendor_email_identifier.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    vendor.branch_name.toLowerCase().includes(searchQuery.toLowerCase())) &&
+    (!selectedFilterBranch || vendor.branch_name === selectedFilterBranch)
   );
 
   const [expandedVendors, setExpandedVendors] = useState<Set<string>>(new Set());
@@ -176,15 +178,22 @@ export function SubVendorsPage() {
     });
   };
 
+  // Get unique branches from vendors
+  const uniqueBranches = useMemo(() => {
+    const branches = new Set<string>();
+    vendors.forEach(vendor => branches.add(vendor.branch_name));
+    return Array.from(branches).sort();
+  }, [vendors]);
+
   // Group vendors by email
   const groupedVendors = useMemo(() => {
     const groups = new Map<string, VendorAssignment[]>();
-    vendors.forEach(vendor => {
+    filteredVendors.forEach(vendor => {
       const existing = groups.get(vendor.vendor_email_identifier) || [];
       groups.set(vendor.vendor_email_identifier, [...existing, vendor]);
     });
     return groups;
-  }, [vendors]);
+  }, [filteredVendors]);
 
   return (
     <div className="space-y-8 p-6 bg-gray-50" dir={language === 'ar' ? 'rtl' : 'ltr'}>
@@ -211,6 +220,24 @@ export function SubVendorsPage() {
               className="w-full pr-10 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               dir={language === 'ar' ? 'rtl' : 'ltr'}
             />
+          </div>
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t.branch} <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={selectedFilterBranch}
+              onChange={(e) => setSelectedFilterBranch(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              dir={language === 'ar' ? 'rtl' : 'ltr'}
+            >
+              <option value="">{t.allBranches}</option>
+              {uniqueBranches.map(branch => (
+                <option key={branch} value={branch}>
+                  {branch}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
