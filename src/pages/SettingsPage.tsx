@@ -19,10 +19,12 @@ export function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const { upload, isUploading } = useImageUpload();
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoTimestamp, setLogoTimestamp] = useState<number>(Date.now());
 
   useEffect(() => {
     if (settings?.url_logo_of_business) {
       setLogoPreview(settings.url_logo_of_business);
+      setLogoTimestamp(Date.now());
     }
   }, [settings?.url_logo_of_business]);
 
@@ -50,6 +52,9 @@ export function SettingsPage() {
           ...settings,
           url_logo_of_business: uploadedUrl
         });
+
+        // Force image refresh
+        setLogoTimestamp(Date.now());
 
         // Save to database
         await updateBusinessSettings(user!.businessCode, {
@@ -153,7 +158,7 @@ export function SettingsPage() {
                 {logoPreview ? (
                   <div className="relative w-full h-full">
                     <img
-                      src={logoPreview}
+                      src={`${logoPreview}?t=${logoTimestamp}`}
                       alt="Business logo"
                       className="w-full h-full object-contain"
                     />
