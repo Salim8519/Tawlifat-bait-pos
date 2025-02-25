@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { generateBarcode, printBarcode, type BarcodeData } from '../services/barcodeService';
+import { generateBarcode, printBarcodeWithSettings, getCachedBarcodeSettings, type BarcodeData } from '../services/barcodeService';
 
-export function useBarcodeService() {
+export const useBarcodeService = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,15 +26,18 @@ export function useBarcodeService() {
     setError(null);
     
     try {
-      const success = await printBarcode(data);
-      if (!success) {
-        throw new Error('Print failed');
-      }
-    } catch (err) {
-      setError('Failed to print barcode');
-      throw err;
-    } finally {
+      console.log('Printing barcode with data:', data);
+      
+      // Use the new function that explicitly uses cached settings
+      const success = await printBarcodeWithSettings(data);
+      
       setIsPrinting(false);
+      return success;
+    } catch (err) {
+      console.error('Error printing barcode:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      setIsPrinting(false);
+      return false;
     }
   };
 
@@ -45,4 +48,4 @@ export function useBarcodeService() {
     isPrinting,
     error
   };
-}
+};

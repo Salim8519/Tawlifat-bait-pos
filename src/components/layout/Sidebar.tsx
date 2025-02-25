@@ -152,8 +152,8 @@ export function Sidebar() {
                   <NavItem to="/settings" icon={Settings}>
                     {language === 'ar' ? 'الإعدادات' : 'Settings'}
                   </NavItem>
-                  <NavItem to="/print-settings" icon={Printer}>
-                    {language === 'ar' ? 'إعدادات الطباعة' : 'Print Settings'}
+                  <NavItem to="/barcode-settings" icon={Printer}>
+                    {language === 'ar' ? 'إعدادات الباركود' : 'Barcode Settings'}
                   </NavItem>
                   <NavItem to="/developer" icon={Code}>
                     {language === 'ar' ? 'المطور' : 'Developer'}
