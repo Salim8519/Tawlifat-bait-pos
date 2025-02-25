@@ -198,8 +198,8 @@ export function VendorProductForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Product Image */}
         <div className="col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            {t.productImage} <span className="text-red-500">*</span>
+          <label className="block text-base font-semibold text-gray-900 mb-2">
+            {t.productImage}
           </label>
           <div className="flex items-center space-x-4 space-x-reverse">
             <div className="flex-1">
@@ -231,13 +231,13 @@ export function VendorProductForm({
                         <input
                           type="file"
                           accept="image/*"
-                          required={!initialData?.image_url}
+                          required={false}
                           onChange={handleImageChange}
                           className="sr-only"
                         />
                       </label>
                     </div>
-                    <p className="text-xs text-gray-500">{t.uploadInstructions}</p>
+                    <p className="text-xs text-gray-500">{t.uploadInstructions} ({t.optional})</p>
                   </div>
                 )}
               </div>

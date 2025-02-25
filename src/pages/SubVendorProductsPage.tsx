@@ -230,12 +230,20 @@ export function SubVendorProductsPage() {
         
         <div className="flex items-center space-x-4 space-x-reverse w-full max-w-xl">
           <div className="flex-1 space-y-2">
-            <ProposedBusinessFilter
-              selectedBusinessCode={selectedBusinessCode}
-              onBusinessChange={setSelectedBusinessCode}
-              assignments={assignments}
-              className="w-full"
-            />
+            <div className={`${selectedBusinessCode === 'all' ? 'border-2 border-red-400 rounded-md p-1' : ''}`}>
+              <ProposedBusinessFilter
+                selectedBusinessCode={selectedBusinessCode}
+                onBusinessChange={setSelectedBusinessCode}
+                assignments={assignments}
+                className="w-full"
+              />
+              {selectedBusinessCode === 'all' && (
+                <div className="text-red-500 text-sm font-medium mt-1 flex items-center">
+                  <AlertTriangle className="w-4 h-4 mr-1" />
+                  {t.selectBusinessFirst}
+                </div>
+              )}
+            </div>
             {/* Branch Selector */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -266,13 +274,22 @@ export function SubVendorProductsPage() {
             onClick={() => {
               if (selectedBusinessCode === 'all') {
                 setError(t.selectBusinessFirst);
+                // Scroll to the business filter
+                const businessFilter = document.querySelector('.business-filter');
+                if (businessFilter) {
+                  businessFilter.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
                 return;
               }
               setError(null); // Clear error when proceeding to add product
               setEditingProduct(null);
               setShowForm(true);
             }}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 flex items-center"
+            className={`${
+              selectedBusinessCode === 'all' 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-indigo-600 hover:bg-indigo-700'
+            } text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 flex items-center`}
           >
             <Plus className="w-5 h-5 ml-2" />
             {t.addProduct}

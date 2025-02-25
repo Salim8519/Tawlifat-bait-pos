@@ -24,7 +24,6 @@ export function ProductForm({ onSubmit, initialData }: ProductFormProps) {
   const { upload, isUploading } = useImageUpload();
 
   // Format date string for datetime-local input
-  // Format date string for datetime-local input
   const formatDateForInput = (dateString: string | null) => {
     if (!dateString) return '';
     try {
@@ -49,6 +48,7 @@ export function ProductForm({ onSubmit, initialData }: ProductFormProps) {
   const [imageUrl, setImageUrl] = React.useState<string | null>(initialData?.image_url || null);
   const [imagePreview, setImagePreview] = React.useState<string | null>(initialData?.image_url || null);
   const [generatedBarcode, setGeneratedBarcode] = React.useState(initialData?.barcode || '');
+  const [isManualBarcode, setIsManualBarcode] = React.useState(false);
   const [selectedBranch, setSelectedBranch] = useState(initialData?.branch_name || mainBranch || '');
   const formRef = React.useRef<HTMLFormElement>(null);
 
@@ -152,7 +152,7 @@ export function ProductForm({ onSubmit, initialData }: ProductFormProps) {
         {/* Image Upload */}
         <div className="col-span-2">
           <label className="block text-base font-semibold text-gray-900 mb-2">
-            {t.productImage} <span className="text-red-500">*</span>
+            {t.productImage}
           </label>
           <div className="flex items-center space-x-4 space-x-reverse">
             <div className="flex-1">
@@ -184,13 +184,13 @@ export function ProductForm({ onSubmit, initialData }: ProductFormProps) {
                         <input
                           type="file"
                           accept="image/*"
-                          required={!initialData?.image_url}
+                          required={false}
                           onChange={handleImageChange}
                           className="sr-only"
                         />
                       </label>
                     </div>
-                    <p className="text-xs text-gray-500">{t.uploadInstructions}</p>
+                    <p className="text-xs text-gray-500">{t.uploadInstructions} ({t.optional})</p>
                   </div>
                 )}
               </div>
@@ -258,14 +258,36 @@ export function ProductForm({ onSubmit, initialData }: ProductFormProps) {
               <input
                 type="text"
                 value={generatedBarcode}
-                readOnly
-                className="block w-full pr-10 rounded-md border-gray-300 bg-gray-50 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                onChange={(e) => isManualBarcode && setGeneratedBarcode(e.target.value)}
+                readOnly={!isManualBarcode}
+                className={`block w-full pr-10 rounded-md border-gray-300 ${isManualBarcode ? 'bg-white' : 'bg-gray-50'} shadow-sm focus:border-indigo-500 focus:ring-indigo-500`}
                 dir="ltr"
               />
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setIsManualBarcode(!isManualBarcode);
+                if (!isManualBarcode) {
+                  // If switching to manual mode, don't clear the current barcode
+                } else {
+                  // If switching back to auto mode, regenerate the barcode
+                  generateBarcode();
+                }
+              }}
+              className={`px-3 py-2 rounded-md text-sm font-medium ${
+                isManualBarcode 
+                  ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              } transition-colors duration-200`}
+            >
+              {isManualBarcode ? t.autoGenerate : t.manualEntry}
+            </button>
           </div>
           <p className="mt-1 text-sm text-gray-500">
-            {t.barcodeGeneratedAutomatically}
+            {isManualBarcode 
+              ? t.enterBarcodeManually 
+              : t.barcodeGeneratedAutomatically}
           </p>
         </div>
 
