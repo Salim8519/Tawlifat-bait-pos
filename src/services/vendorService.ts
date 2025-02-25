@@ -411,23 +411,53 @@ export async function getVendorTransactions(
 }
 
 /**
- * Get all available vendors
+ * Get available vendors, optionally filtered by business code
+ * @param businessCode Optional business code to filter vendors by their assignments
  */
-export async function getAllVendors(): Promise<VendorProfile[]> {
+export async function getAllVendors(businessCode?: string): Promise<VendorProfile[]> {
   try {
-    const { data, error } = await supabase
+    // First get all vendors
+    const { data: vendorProfiles, error: vendorError } = await supabase
       .from('profiles')
       .select('*')
       .eq('role', 'vendor')
       .eq('is_vendor', true)
       .order('vendor_business _name', { ascending: true });
 
-    if (error) {
-      console.error('Error fetching vendors:', error);
-      throw error;
+    if (vendorError) {
+      console.error('Error fetching vendors:', vendorError);
+      throw vendorError;
     }
 
-    return data || [];
+    // Map the database fields to the VendorProfile interface
+    const mappedProfiles = (vendorProfiles || []).map(profile => ({
+      ...profile,
+      vendor_business_name: profile["vendor_business _name"] || profile.full_name || 'Unknown'
+    }));
+
+    // If no business code provided, return all vendors
+    if (!businessCode) {
+      return mappedProfiles;
+    }
+
+    // If business code is provided, filter vendors by assignments
+    const { data: assignments, error: assignmentError } = await supabase
+      .from('vendor_assignments')
+      .select('vendor_business_code')
+      .eq('owner_business_code', businessCode);
+
+    if (assignmentError) {
+      console.error('Error fetching vendor assignments:', assignmentError);
+      throw assignmentError;
+    }
+
+    // Get unique vendor business codes assigned to this business
+    const assignedVendorCodes = [...new Set(assignments?.map(a => a.vendor_business_code) || [])];
+
+    // Filter vendor profiles to only include those assigned to this business
+    return mappedProfiles.filter(vendor => 
+      assignedVendorCodes.includes(vendor.business_code)
+    );
   } catch (error) {
     console.error('Error in getAllVendors:', error);
     throw error;

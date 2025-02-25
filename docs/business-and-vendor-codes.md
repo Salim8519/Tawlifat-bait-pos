@@ -255,8 +255,3 @@ const { data: vendorAssignments } = await supabase
    - Validate data at application level
    - Use transactions for critical operations
 
-## Related Documentation
-
-- [Development Log](./DEVELOPMENT_LOG.md)
-- [Vendor Spaces](./features/vendor-spaces.md)
-- [Database Structure](./database-structure.md)

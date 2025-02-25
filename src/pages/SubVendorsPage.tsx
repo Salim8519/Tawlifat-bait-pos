@@ -75,7 +75,7 @@ export function SubVendorsPage() {
 
   const loadAvailableVendors = async () => {
     try {
-      const data = await getAllVendors();
+      const data = await getAllVendors(user!.businessCode);
       setAvailableVendors(data);
     } catch (error) {
       console.error('Error loading available vendors:', error);
@@ -390,7 +390,7 @@ export function SubVendorsPage() {
                     <option value="">{t.selectVendor}</option>
                     {availableVendors.map(vendor => (
                       <option key={vendor.user_id} value={vendor.user_id}>
-                        {vendor.vendor_business_name || vendor.full_name}
+                        {vendor.vendor_business_name}
                       </option>
                     ))}
                   </select>

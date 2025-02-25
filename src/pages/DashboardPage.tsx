@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useUserStore } from '../store/useUserStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { useTranslation } from 'react-i18next';
 import { dashboardTranslations } from '../translations/dashboard';
 import { RefreshCcw, AlertCircle, Package } from 'lucide-react';
@@ -33,6 +34,7 @@ import { formatCurrency } from '../utils/formatters';
 export function DashboardPage() {
   const { language } = useLanguageStore();
   const { userProfile, fetchUserProfile } = useUserStore();
+  const { user } = useAuthStore();
   const { t, i18n } = useTranslation();
   const [insights, setInsights] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -67,10 +69,9 @@ export function DashboardPage() {
   // Fetch user profile if not available
   useEffect(() => {
     console.log('User Profile Effect:', { userProfile, isLoading });
-    // Temporarily disabled user profile fetching
-    /*if (!userProfile) {
+    if (!userProfile) {
       fetchUserProfile();
-    }*/
+    }
   }, [userProfile, fetchUserProfile, isLoading]);
 
   useEffect(() => {
@@ -119,6 +120,16 @@ export function DashboardPage() {
       try {
         setIsLoading(true);
         
+        // Get business code from auth store or user profile
+        const businessCode = user?.businessCode || userProfile?.business_code;
+        
+        if (!businessCode) {
+          console.error('No business code available');
+          setError('No business code available. Please log in again.');
+          setIsLoading(false);
+          return;
+        }
+        
         // Get daily transaction counts for the period
         const startDate = new Date(dateRange.startDate);
         const endDate = new Date(dateRange.endDate);
@@ -130,7 +141,7 @@ export function DashboardPage() {
           const dateStr = format(currentDate, 'yyyy-MM-dd');
           
           return getTransactionSummary(
-            'Hkso03',
+            businessCode,
             dateStr,
             dateStr,
             selectedBranch === 'all' ? undefined : selectedBranch
@@ -139,7 +150,7 @@ export function DashboardPage() {
 
         const [summaryData, branchesData, dailyData] = await Promise.all([
           getTransactionSummary(
-            'Hkso03',
+            businessCode,
             dateRange.startDate,
             dateRange.endDate,
             selectedBranch === 'all' ? undefined : selectedBranch
@@ -147,7 +158,7 @@ export function DashboardPage() {
           selectedBranch === 'all' ? Promise.all(
             branches.map(branch => 
               getTransactionSummary(
-                'Hkso03',
+                businessCode,
                 dateRange.startDate,
                 dateRange.endDate,
                 branch.branch_name
@@ -197,13 +208,21 @@ export function DashboardPage() {
     if (branches.length > 0) {
       fetchDashboardData();
     }
-  }, [selectedBranch, dateRange, branches]);
+  }, [selectedBranch, dateRange, branches, user, userProfile]);
 
   // Fetch branches
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const data = await getActiveBranches('Hkso03'); // Replace with actual business code
+        // Get business code from auth store or user profile
+        const businessCode = user?.businessCode || userProfile?.business_code;
+        
+        if (!businessCode) {
+          console.error('No business code available for fetching branches');
+          return;
+        }
+        
+        const data = await getActiveBranches(businessCode);
         setBranches(data);
         setBranchesCount(data.length);
       } catch (err) {
@@ -212,7 +231,7 @@ export function DashboardPage() {
     };
 
     fetchBranches();
-  }, []);
+  }, [user, userProfile]);
 
   if (isLoading) {
     return (

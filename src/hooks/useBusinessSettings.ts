@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSettingsStore } from '../store/useSettingsStore';
-import { getBusinessSettings } from '../services/settingsService';
+import { getBusinessSettings, createBusinessSettings } from '../services/settingsService';
 
 export function useBusinessSettings() {
   const { user } = useAuthStore();
@@ -21,7 +21,14 @@ export function useBusinessSettings() {
       try {
         setIsLoading(true);
         setError(null);
-        const data = await getBusinessSettings(user.businessCode);
+        let data = await getBusinessSettings(user.businessCode);
+        
+        // If no settings exist, create default settings
+        if (!data) {
+          console.log('Creating default settings for business:', user.businessCode);
+          data = await createBusinessSettings(user.businessCode);
+        }
+        
         setSettings(data);
       } catch (err) {
         console.error('Error loading business settings:', err);
@@ -31,7 +38,8 @@ export function useBusinessSettings() {
       }
     };
 
-    if (!settings) {
+    // Only load if settings are null or business code changed
+    if (!settings || settings.business_code_ !== user?.businessCode) {
       loadSettings();
     }
   }, [user?.businessCode]);

@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Store, Receipt, Tag, Users, Percent, AlertTriangle, Upload, Image } from 'lucide-react';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { settingsTranslations } from '../translations/settings';
 import { VendorCommissionSettings } from '../components/settings/VendorCommissionSettings';
-import { getBusinessSettings, updateBusinessSettings } from '../services/settingsService';
+import { useBusinessSettings } from '../hooks/useBusinessSettings';
+import { updateBusinessSettings } from '../services/settingsService';
 import { useImageUpload } from '../hooks/useImageUpload';
-import type { BusinessSettings } from '../services/settingsService';
+import type { BusinessSettings } from '../types/settings';
 
 export function SettingsPage() {
   const { language } = useLanguageStore();
@@ -20,6 +21,9 @@ export function SettingsPage() {
   const { upload, isUploading } = useImageUpload();
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [forceUpdate, setForceUpdate] = useState(0);
+
+  // Use the hook to manage settings
+  const { isLoading: isLoadingSettings, settings: currentSettings } = useBusinessSettings();
 
   const refreshImage = () => setForceUpdate(prev => prev + 1);
 
@@ -77,41 +81,25 @@ export function SettingsPage() {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (newSettings: Partial<BusinessSettings>) => {
+    if (!user?.businessCode) return;
+    
     setIsSaving(true);
     setError(null);
-    const updates = {
-      receipt_header: settings.receipt_header,
-      receipt_footer: settings.receipt_footer,
-      url_logo_of_business: settings.url_logo_of_business,
-      loyalty_system_enabled: settings.loyalty_system_enabled,
-      vendor_commission_enabled: settings.vendor_commission_enabled,
-      default_commission_rate: settings.default_commission_rate,
-      minimum_commission_amount: settings.minimum_commission_amount,
-      tax_enabled: settings.tax_enabled,
-      tax_rate: settings.tax_rate,
-      extra_tax_monthly_on_vendors: settings.extra_tax_monthly_on_vendors
-    };
     
     try {
-      if (!user?.businessCode || !settings) return;
-
-      console.log('Saving settings:', updates);
-
-      await updateBusinessSettings(user.businessCode, updates);
-
-      const updatedSettings = await getBusinessSettings(user.businessCode);
+      console.log('Saving settings:', newSettings);
+      const updatedSettings = await updateBusinessSettings(user.businessCode, newSettings);
       setSettings(updatedSettings);
-      alert(t.settingsSaved);
     } catch (err) {
       console.error('Error saving settings:', err);
-      setError(t.errorSavingSettings);
+      setError(err instanceof Error ? err.message : 'Failed to save settings');
     } finally {
       setIsSaving(false);
     }
   };
 
-  if (!settings) {
+  if (isLoadingSettings) {
     return (
       <div className="flex items-center justify-center h-full">
         <p className="text-gray-500">{t.loading}</p>
@@ -124,7 +112,18 @@ export function SettingsPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">{t.settings}</h1>
         <button
-          onClick={handleSave}
+          onClick={() => handleSave({
+            receipt_header: settings.receipt_header,
+            receipt_footer: settings.receipt_footer,
+            url_logo_of_business: settings.url_logo_of_business,
+            loyalty_system_enabled: settings.loyalty_system_enabled,
+            vendor_commission_enabled: settings.vendor_commission_enabled,
+            default_commission_rate: settings.default_commission_rate,
+            minimum_commission_amount: settings.minimum_commission_amount,
+            tax_enabled: settings.tax_enabled,
+            tax_rate: settings.tax_rate,
+            extra_tax_monthly_on_vendors: settings.extra_tax_monthly_on_vendors
+          })}
           disabled={isSaving}
           className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-gray-400"
         >
