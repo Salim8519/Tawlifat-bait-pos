@@ -1,5 +1,45 @@
 import { useSettingsStore } from '../store/useSettingsStore';
 
+// Interface for barcode settings
+export interface BarcodeSettings {
+  businessNameFontSize: number;
+  vendorNameFontSize: number;
+  productNameFontSize: number;
+  barcodeFontSize: number;
+  barcodeWidth: number;
+  barcodeHeight: number;
+  barcodeLineWidth: number;
+  priceFontSize: number;
+  dateFontSize: number;
+}
+
+// Default barcode settings
+export const defaultBarcodeSettings: BarcodeSettings = {
+  businessNameFontSize: 7,
+  vendorNameFontSize: 7,
+  productNameFontSize: 8,
+  barcodeFontSize: 6,
+  barcodeWidth: 45,
+  barcodeHeight: 12,
+  barcodeLineWidth: 1,
+  priceFontSize: 9,
+  dateFontSize: 6,
+};
+
+// Get cached settings from localStorage or return defaults
+export function getCachedBarcodeSettings(): BarcodeSettings {
+  try {
+    const cached = localStorage.getItem('barcodeSettings');
+    if (cached) {
+      const parsedSettings = JSON.parse(cached);
+      return parsedSettings;
+    }
+  } catch (error) {
+    console.error('Error loading cached barcode settings:', error);
+  }
+  return defaultBarcodeSettings;
+}
+
 // Interface for barcode data
 export interface BarcodeData {
   productId: string;
@@ -57,11 +97,19 @@ function calculateChecksum(barcode: string): number {
   return checksum;
 }
 
+// Generate barcode preview content
+export function generateBarcodePreview(data: BarcodeData, settings?: BarcodeSettings): string {
+  const barcode = data.existingBarcode || generateBarcode(data);
+  const effectiveSettings = settings || getCachedBarcodeSettings();
+  return generatePrintContent(barcode, data, effectiveSettings, true);
+}
+
 // Print barcode using browser print functionality
-export async function printBarcode(data: BarcodeData): Promise<boolean> {
+export async function printBarcode(data: BarcodeData, settings?: BarcodeSettings): Promise<boolean> {
   try {
     // Use existing barcode or generate new one
     const barcode = data.existingBarcode || generateBarcode(data);
+    const effectiveSettings = settings || getCachedBarcodeSettings();
     
     // Try to detect if we're in an iframe
     const isInIframe = window !== window.parent;
@@ -77,7 +125,7 @@ export async function printBarcode(data: BarcodeData): Promise<boolean> {
     }
 
     // Generate print content with barcode
-    const content = generatePrintContent(barcode, data);
+    const content = generatePrintContent(barcode, data, effectiveSettings, false);
     printWindow.document.write(content);
     printWindow.document.close();
 
@@ -146,7 +194,7 @@ export async function printBarcode(data: BarcodeData): Promise<boolean> {
 }
 
 // Generate print content with barcode
-function generatePrintContent(barcode: string, data: BarcodeData): string {
+function generatePrintContent(barcode: string, data: BarcodeData, settings: BarcodeSettings = defaultBarcodeSettings, isPreview: boolean = false): string {
   const formatDate = (date: string | undefined) => {
     if (!date) return '';
     const d = new Date(date);
@@ -164,24 +212,37 @@ function generatePrintContent(barcode: string, data: BarcodeData): string {
       <title>Product Barcode</title>
       <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
       <style>
+        ${isPreview ? '' : `
         @page {
           size: 58mm 40mm;
           margin: 0;
-        }
+        }`}
         body {
           margin: 1.5mm;
           font-family: Arial, sans-serif;
           font-size: 8pt;
+          ${isPreview ? 'background-color: white;' : ''}
         }
         .container {
-          width: 55mm;
-          height: 37mm;
+          width: ${isPreview ? '100%' : '55mm'};
+          height: ${isPreview ? 'auto' : '38mm'};
           display: flex;
           flex-direction: column;
           align-items: center;
+          ${isPreview ? 'padding: 8px;' : ''}
+          overflow: visible;
         }
         .business-name {
-          font-size: 7pt;
+          font-size: ${settings.businessNameFontSize}pt;
+          margin-bottom: 0.5mm;
+          text-align: center;
+          width: 100%;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .vendor-name {
+          font-size: ${settings.vendorNameFontSize}pt;
           margin-bottom: 0.5mm;
           text-align: center;
           width: 100%;
@@ -190,7 +251,7 @@ function generatePrintContent(barcode: string, data: BarcodeData): string {
           text-overflow: ellipsis;
         }
         .product-name {
-          font-size: 8pt;
+          font-size: ${settings.productNameFontSize}pt;
           font-weight: bold;
           margin-bottom: 0.5mm;
           text-align: center;
@@ -200,31 +261,36 @@ function generatePrintContent(barcode: string, data: BarcodeData): string {
           text-overflow: ellipsis;
         }
         .barcode {
-          margin: 0.5mm 0;
+          margin: 1mm 0;
+          width: 100%;
+          text-align: center;
+          min-height: ${settings.barcodeHeight + 5}mm; /* Ensure space for barcode */
         }
         .barcode svg {
-          width: 45mm !important;
-          height: 12mm !important;
-          margin-bottom: 0.3mm;  
+          width: ${settings.barcodeWidth}mm !important;
+          height: ${settings.barcodeHeight}mm !important;
+          margin-bottom: 0.5mm;
+          display: inline-block !important;
         }
         .barcode-number {
-          font-size: 6pt;
+          font-size: ${settings.barcodeFontSize}pt;
           text-align: center;
           margin-top: 0.2mm;   
           font-family: monospace;
         }
         .price {
-          font-size: 9pt;
+          font-size: ${settings.priceFontSize}pt;
           font-weight: bold;
           margin: 0.5mm 0;
         }
         .dates {
-          font-size: 6pt;
+          font-size: ${settings.dateFontSize}pt;
           display: flex;
           gap: 3mm;
           justify-content: center;
           width: 100%;
-          margin-top: 0.5mm;
+          margin-top: 1mm;
+          margin-bottom: 1mm;
         }
         .date {
           display: flex;
@@ -245,7 +311,7 @@ function generatePrintContent(barcode: string, data: BarcodeData): string {
     <body>
       <div class="container">
         ${data.businessName ? `<div class="business-name">${data.businessName}</div>` : ''}
-        ${data.vendorName ? `<div class="business-name">${data.vendorName}</div>` : ''}
+        ${data.vendorName ? `<div class="vendor-name">${data.vendorName}</div>` : ''}
         <div class="product-name">${data.name}</div>
         <div class="barcode">
           <svg id="barcode"></svg>
@@ -268,17 +334,45 @@ function generatePrintContent(barcode: string, data: BarcodeData): string {
         </div>
       </div>
       <script>
-        JsBarcode("#barcode", "${barcode}", {
-          format: "CODE128",
-          width: 0.5,
-          height: 18,
-          displayValue: false,
-          margin: 0,
-          background: "transparent",
-          lineColor: "#000",
-          fontSize: 6,
-          textMargin: 0
-        });
+        // Wait for DOM and JsBarcode to be ready
+        function initBarcode() {
+          if (typeof JsBarcode === 'undefined') {
+            // If JsBarcode isn't available yet, try again in 100ms
+            setTimeout(initBarcode, 100);
+            return;
+          }
+          
+          try {
+            JsBarcode("#barcode", "${barcode}", {
+              format: "CODE128",
+              width: ${Math.max(0.5, Math.min(3, settings.barcodeLineWidth))}, // Constrain values
+              height: ${Math.max(10, Math.min(50, settings.barcodeHeight))},
+              displayValue: false,
+              margin: 0,
+              background: "transparent",
+              lineColor: "#000",
+              fontSize: ${settings.barcodeFontSize},
+              textMargin: 0
+            });
+          } catch (e) {
+            console.error("Error generating barcode:", e);
+            // Fallback - display the barcode number in a more visible way
+            var barcodeNumber = document.querySelector('.barcode-number');
+            if (barcodeNumber) {
+              barcodeNumber.style.fontSize = '12pt';
+              barcodeNumber.style.fontWeight = 'bold';
+            }
+          }
+        }
+        
+        // Try to initialize immediately and also with a delay as backup
+        if (document.readyState === 'complete') {
+          initBarcode();
+        } else {
+          window.onload = initBarcode;
+        }
+        // Backup initialization
+        setTimeout(initBarcode, 300);
       </script>
     </body>
     </html>

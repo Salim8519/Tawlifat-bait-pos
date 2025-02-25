@@ -29,6 +29,7 @@ import { ReceiptsHistoryPage } from './pages/ReceiptsHistoryPage';
 import { VendorProfitsPage } from './pages/VendorProfitsPage';
 import MonthlyVendorTaxesPage from './pages/MonthlyVendorTaxesPage';
 import { VendorSpacesPage } from './pages/VendorSpacesPage';
+import { PrintSettingsPage } from './pages/PrintSettingsPage';
 import { useAuthStore } from './store/useAuthStore';
 import { useLanguageStore } from './store/useLanguageStore';
 import { useBusinessStore } from './store/useBusinessStore';
@@ -111,6 +112,7 @@ function AppRoutes() {
                 <Route path="branches" element={<BranchManagementPage />} />
                 <Route path="coupons" element={<CouponsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
+                <Route path="print-settings" element={<PrintSettingsPage />} />
                 <Route path="developer" element={<DeveloperInfoPage />} />
               </>
             )}

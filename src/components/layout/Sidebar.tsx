@@ -20,7 +20,8 @@ import {
   ArrowLeftRight,
   TrendingUp,
   LayoutGrid,
-  Wallet
+  Wallet,
+  Printer
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useLanguageStore } from '../../store/useLanguageStore';
@@ -150,6 +151,9 @@ export function Sidebar() {
                   </NavItem>
                   <NavItem to="/settings" icon={Settings}>
                     {language === 'ar' ? 'الإعدادات' : 'Settings'}
+                  </NavItem>
+                  <NavItem to="/print-settings" icon={Printer}>
+                    {language === 'ar' ? 'إعدادات الطباعة' : 'Print Settings'}
                   </NavItem>
                   <NavItem to="/developer" icon={Code}>
                     {language === 'ar' ? 'المطور' : 'Developer'}
