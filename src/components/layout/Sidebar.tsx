@@ -22,7 +22,8 @@ import {
   LayoutGrid,
   Wallet,
   Printer,
-  X
+  X,
+  Building
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useLanguageStore } from '../../store/useLanguageStore';
@@ -101,6 +102,12 @@ export function Sidebar({ mobile = false, onCloseMobile }: SidebarProps) {
               </NavItem>
               <NavItem to="/products" icon={Package} onClick={handleNavClick}>
                 {language === 'ar' ? 'منتجاتي' : 'My Products'}
+              </NavItem>
+              <NavItem to="/reports" icon={BarChart} onClick={handleNavClick}>
+                {language === 'ar' ? 'التقارير' : 'Reports'}
+              </NavItem>
+              <NavItem to="/rentals" icon={Building} onClick={handleNavClick}>
+                {language === 'ar' ? 'إيجاراتي' : 'My Rentals'}
               </NavItem>
               <NavItem to="/settings" icon={Settings} onClick={handleNavClick}>
                 {language === 'ar' ? 'الإعدادات' : 'Settings'}

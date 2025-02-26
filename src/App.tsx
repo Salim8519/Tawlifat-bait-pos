@@ -25,6 +25,8 @@ import { AdminCashiersPage } from './pages/admin/AdminCashiersPage';
 import { SuperAdminPage } from './pages/admin/SuperAdminPage';
 import { SubVendorDashboardPage } from './pages/SubVendorDashboardPage';
 import { SubVendorProductsPage } from './pages/SubVendorProductsPage';
+import { SubVendorReportsPage } from './pages/SubVendorReportsPage';
+import { VendorRentalsPage } from './pages/VendorRentalsPage';
 import { ReceiptsHistoryPage } from './pages/ReceiptsHistoryPage';
 import { VendorProfitsPage } from './pages/VendorProfitsPage';
 import MonthlyVendorTaxesPage from './pages/MonthlyVendorTaxesPage';
@@ -86,6 +88,8 @@ function AppRoutes() {
           <>
             <Route path="dashboard" element={<SubVendorDashboardPage />} />
             <Route path="products" element={<SubVendorProductsPage />} />
+            <Route path="reports" element={<SubVendorReportsPage />} />
+            <Route path="rentals" element={<VendorRentalsPage />} />
             <Route path="settings" element={<VendorSettingsPage />} />
           </>
         ) : (
