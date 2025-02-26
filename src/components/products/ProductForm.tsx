@@ -8,6 +8,7 @@ import { productTranslations } from '../../translations/products';
 import { useBarcodeService } from '../../hooks/useBarcodeService';
 import type { Product, ProductType } from '../../types/product';
 import { useImageUpload } from '../../hooks/useImageUpload';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 interface ProductFormProps {
   onSubmit: (product: Partial<Product>) => void;
@@ -22,6 +23,7 @@ export function ProductForm({ onSubmit, initialData }: ProductFormProps) {
   const [mainBranch, setMainBranch] = React.useState<string | null>(null);
   const { generateProductBarcode } = useBarcodeService();
   const { upload, isUploading } = useImageUpload();
+  const isMobile = useMediaQuery('(max-width: 640px)');
 
   // Format date string for datetime-local input
   const formatDateForInput = (dateString: string | null) => {
@@ -48,7 +50,7 @@ export function ProductForm({ onSubmit, initialData }: ProductFormProps) {
   const [imageUrl, setImageUrl] = React.useState<string | null>(initialData?.image_url || null);
   const [imagePreview, setImagePreview] = React.useState<string | null>(initialData?.image_url || null);
   const [generatedBarcode, setGeneratedBarcode] = React.useState(initialData?.barcode || '');
-  const [isManualBarcode, setIsManualBarcode] = React.useState(false);
+  const [isManualBarcode, setIsManualBarcode] = React.useState(!!initialData?.barcode);
   const [selectedBranch, setSelectedBranch] = useState(initialData?.branch_name || mainBranch || '');
   const formRef = React.useRef<HTMLFormElement>(null);
 
@@ -110,11 +112,12 @@ export function ProductForm({ onSubmit, initialData }: ProductFormProps) {
     }
   };
 
-  // Generate barcode when product name changes
+  // Generate barcode when product name changes - only for new products without existing barcodes
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.value) {
+    // Only auto-generate barcode for new products (no initialData) and when not in manual mode
+    if (!initialData?.barcode && e.target.value && !isManualBarcode) {
       generateBarcode();
-    } else {
+    } else if (!initialData?.barcode && !e.target.value && !isManualBarcode) {
       setGeneratedBarcode('');
     }
   };
@@ -162,7 +165,7 @@ export function ProductForm({ onSubmit, initialData }: ProductFormProps) {
                     <img
                       src={imagePreview}
                       alt="Product preview"
-                      className="h-48 w-48 object-cover rounded-lg shadow-sm"
+                      className={`${isMobile ? 'h-36 w-36' : 'h-48 w-48'} object-cover rounded-lg shadow-sm`}
                     />
                     <button
                       type="button"
@@ -252,15 +255,15 @@ export function ProductForm({ onSubmit, initialData }: ProductFormProps) {
           <label className="block text-sm font-medium text-gray-700">
             {t.barcode}
           </label>
-          <div className="mt-1 flex items-center space-x-2 space-x-reverse">
-            <div className="relative flex-1">
+          <div className={`mt-1 flex items-center ${isMobile ? 'flex-col space-y-2' : 'space-x-2 space-x-reverse'}`}>
+            <div className="relative flex-1 w-full">
               <Barcode className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
               <input
                 type="text"
                 value={generatedBarcode}
                 onChange={(e) => isManualBarcode && setGeneratedBarcode(e.target.value)}
                 readOnly={!isManualBarcode}
-                className={`block w-full pr-10 rounded-md border-gray-300 ${isManualBarcode ? 'bg-white' : 'bg-gray-50'} shadow-sm focus:border-indigo-500 focus:ring-indigo-500`}
+                className={`block w-full pr-10 rounded-md border-gray-300 ${isManualBarcode ? 'bg-white' : 'bg-gray-50'} shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${isMobile ? 'py-3 text-base' : ''}`}
                 dir="ltr"
               />
             </div>
@@ -270,12 +273,12 @@ export function ProductForm({ onSubmit, initialData }: ProductFormProps) {
                 setIsManualBarcode(!isManualBarcode);
                 if (!isManualBarcode) {
                   // If switching to manual mode, don't clear the current barcode
-                } else {
-                  // If switching back to auto mode, regenerate the barcode
+                } else if (!initialData?.barcode) {
+                  // If switching back to auto mode and it's a new product, regenerate the barcode
                   generateBarcode();
                 }
               }}
-              className={`px-3 py-2 rounded-md text-sm font-medium ${
+              className={`${isMobile ? 'w-full' : 'px-3'} py-2 rounded-md text-sm font-medium ${
                 isManualBarcode 
                   ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' 
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -363,10 +366,10 @@ export function ProductForm({ onSubmit, initialData }: ProductFormProps) {
         </div>
       </div>
 
-      <div className="flex justify-end">
+      <div className={`${isMobile ? 'flex flex-col space-y-3' : 'flex justify-end'}`}>
         <button
           type="submit"
-          className="px-6 py-3 bg-indigo-600 text-white text-lg font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 shadow-sm transition-colors duration-200"
+          className={`${isMobile ? 'w-full' : 'px-6'} py-3 bg-indigo-600 text-white text-lg font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 shadow-sm transition-colors duration-200`}
         >
           {initialData ? t.updateProduct : t.addNewProduct}
         </button>

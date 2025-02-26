@@ -13,6 +13,8 @@ const MIN_SCANNER_TIMEOUT = 20;  // Fastest scanner timeout (ms)
 const MAX_SCANNER_TIMEOUT = 100; // Slowest scanner timeout (ms)
 const MANUAL_INPUT_TIMEOUT = 1000; // Manual input timeout (ms)
 const SCANNER_SPEED_THRESHOLD = 50; // Time between keypresses to detect scanner (ms)
+const MIN_BARCODE_LENGTH = 4; // Minimum valid barcode length
+const MAX_BARCODE_LENGTH = 20; // Maximum barcode length to prevent buffer overflow
 
 export function BarcodeScanner({ onScan, onPartialMatch }: BarcodeScannerProps) {
   const { language } = useLanguageStore();
@@ -52,7 +54,8 @@ export function BarcodeScanner({ onScan, onPartialMatch }: BarcodeScannerProps) 
       return;
     }
 
-    if (code.length === 7) {
+    // Check if barcode meets minimum length requirement
+    if (code.length >= MIN_BARCODE_LENGTH) {
       playBeep();
       lastProcessedBarcode.current = code;
       lastProcessedTime.current = now;
@@ -73,11 +76,10 @@ export function BarcodeScanner({ onScan, onPartialMatch }: BarcodeScannerProps) 
     }
 
     const code = barcodeBuffer.current;
-    if (code.length === 7) {
+    
+    // Process valid barcodes (any length >= MIN_BARCODE_LENGTH)
+    if (code.length >= MIN_BARCODE_LENGTH) {
       handleBarcodeSubmit(code, isManualInput.current);
-    } else if (code.length > 7) {
-      // If we somehow got more than 7 digits, take the last 7
-      handleBarcodeSubmit(code.slice(-7), isManualInput.current);
     } else if (force && code.length > 0) {
       // Only clear partial input if forced (e.g., on blur or toggle)
       setBarcode('');
@@ -141,10 +143,13 @@ export function BarcodeScanner({ onScan, onPartialMatch }: BarcodeScannerProps) 
       if (/\d/.test(e.key) && e.key.length === 1) {
         e.preventDefault();
         
-        barcodeBuffer.current += e.key;
-        setBarcode(barcodeBuffer.current);
+        // Prevent buffer overflow
+        if (barcodeBuffer.current.length < MAX_BARCODE_LENGTH) {
+          barcodeBuffer.current += e.key;
+          setBarcode(barcodeBuffer.current);
+        }
 
-        if (barcodeBuffer.current.length >= 5) {
+        if (barcodeBuffer.current.length >= Math.min(MIN_BARCODE_LENGTH - 1, 3)) {
           onPartialMatch?.(barcodeBuffer.current);
         }
 
@@ -178,17 +183,17 @@ export function BarcodeScanner({ onScan, onPartialMatch }: BarcodeScannerProps) 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isListening) return; // Ignore onChange when scanner is active
 
-    const newValue = e.target.value.replace(/\D/g, '').slice(0, 7);
+    const newValue = e.target.value.replace(/\D/g, '').slice(0, MAX_BARCODE_LENGTH);
     isManualInput.current = true;
     
     barcodeBuffer.current = newValue;
     setBarcode(newValue);
     
-    if (newValue.length >= 5) {
+    if (newValue.length >= Math.min(MIN_BARCODE_LENGTH - 1, 3)) {
       onPartialMatch?.(newValue);
     }
     
-    if (newValue.length === 7) {
+    if (newValue.length >= MIN_BARCODE_LENGTH) {
       // Small delay for manual input to prevent double submission
       setTimeout(() => processBuffer(), 100);
     }
@@ -222,7 +227,7 @@ export function BarcodeScanner({ onScan, onPartialMatch }: BarcodeScannerProps) 
         <input
           ref={inputRef}
           type="text"
-          maxLength={7}
+          maxLength={MAX_BARCODE_LENGTH}
           value={barcode}
           onChange={handleInputChange}
           onBlur={handleBlur}
