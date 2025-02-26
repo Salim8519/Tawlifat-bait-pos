@@ -85,6 +85,12 @@ export const posTranslations = {
     enterManually: 'أدخل الباركود يدوياً',
     scannerActive: 'المسح الضوئي نشط',
     outOfStock: '{product} نفذت من المخزون',
+    // Mobile-specific translations
+    products: 'المنتجات',
+    customer: 'العميل',
+    payment: 'الدفع',
+    next: 'التالي',
+    previous: 'السابق',
   },
   en: {
     pointOfSale: 'Point of Sale',
@@ -172,5 +178,11 @@ export const posTranslations = {
     enterManually: 'Enter barcode manually',
     scannerActive: 'Scanner active',
     outOfStock: '{product} is out of stock',
+    // Mobile-specific translations
+    products: 'Products',
+    customer: 'Customer',
+    payment: 'Payment',
+    next: 'Next',
+    previous: 'Previous',
   }
 };
