@@ -4,6 +4,7 @@ import { useLanguageStore } from '../../store/useLanguageStore';
 import { productTranslations } from '../../translations/products';
 import { useBarcodeService } from '../../hooks/useBarcodeService';
 import { useImageUpload } from '../../hooks/useImageUpload';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import type { Product, ProductType } from '../../types/product';
 import type { VendorAssignment } from '../../types/vendor';
 
@@ -28,6 +29,7 @@ export function VendorProductForm({
   const t = productTranslations[language];
   const { upload, isUploading, error: uploadError } = useImageUpload();
   const { generateProductBarcode } = useBarcodeService();
+  const isMobile = useMediaQuery('(max-width: 640px)');
 
   const [type, setType] = useState<ProductType>(initialData?.type || 'non-food');
   const [expiryDate, setExpiryDate] = useState(initialData?.expiry_date || '');
@@ -146,9 +148,9 @@ export function VendorProductForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+    <form onSubmit={handleSubmit} className="space-y-4 px-2 sm:px-0" dir={language === 'ar' ? 'rtl' : 'ltr'}>
       {/* Business and Branch Selection */}
-      <div className={`border rounded-lg p-4 space-y-4 ${ownerBusinessCode === 'all' ? 'bg-red-50 border-red-100' : 'bg-indigo-50 border-indigo-100'}`}>
+      <div className={`border rounded-lg p-3 sm:p-4 space-y-3 sm:space-y-4 ${ownerBusinessCode === 'all' ? 'bg-red-50 border-red-100' : 'bg-indigo-50 border-indigo-100'}`}>
         <div className="flex items-center space-x-2 space-x-reverse">
           <Store className={`w-5 h-5 ${ownerBusinessCode === 'all' ? 'text-red-600' : 'text-indigo-600'}`} />
           <span className="font-medium">{t.sendingTo}:</span>
@@ -163,7 +165,7 @@ export function VendorProductForm({
             value={selectedBranch}
             onChange={(e) => setSelectedBranch(e.target.value)}
             required
-            className={`flex-1 border rounded-md focus:ring-2 ${
+            className={`flex-1 border rounded-md p-2 focus:ring-2 ${
               ownerBusinessCode === 'all' 
                 ? 'bg-red-50 focus:ring-red-500 focus:border-red-500 cursor-not-allowed' 
                 : 'focus:ring-indigo-500 focus:border-indigo-500'
@@ -182,7 +184,7 @@ export function VendorProductForm({
       </div>
 
       {/* Warning Banner */}
-      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 sm:p-4">
         <div className="flex">
           <div className="flex-shrink-0">
             <AlertTriangle className="h-5 w-5 text-yellow-400" />
@@ -195,21 +197,21 @@ export function VendorProductForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6">
         {/* Product Image */}
-        <div className="col-span-2">
+        <div>
           <label className="block text-base font-semibold text-gray-900 mb-2">
             {t.productImage}
           </label>
           <div className="flex items-center space-x-4 space-x-reverse">
             <div className="flex-1">
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+              <div className="mt-1 flex justify-center px-4 sm:px-6 pt-4 sm:pt-5 pb-4 sm:pb-6 border-2 border-gray-300 border-dashed rounded-md">
                 {imagePreview ? (
                   <div className="relative">
                     <img
                       src={imagePreview}
                       alt="Product preview"
-                      className="h-40 w-40 object-cover rounded-md"
+                      className="h-32 sm:h-40 w-32 sm:w-40 object-cover rounded-md"
                     />
                     <button
                       type="button"
@@ -224,7 +226,7 @@ export function VendorProductForm({
                   </div>
                 ) : (
                   <div className="space-y-1 text-center">
-                    <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                    <Upload className="mx-auto h-10 sm:h-12 w-10 sm:w-12 text-gray-400" />
                     <div className="flex text-sm text-gray-600">
                       <label className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500">
                         <span>{t.chooseImage}</span>
@@ -245,107 +247,110 @@ export function VendorProductForm({
           </div>
         </div>
 
-        {/* Product Type */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            {t.productType} <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value as ProductType)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          >
-            <option value="food">{t.food}</option>
-            <option value="non-food">{t.nonFood}</option>
-          </select>
-        </div>
+        {/* Product Info Section */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          {/* Product Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              {t.productType} <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value as ProductType)}
+              className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option value="food">{t.food}</option>
+              <option value="non-food">{t.nonFood}</option>
+            </select>
+          </div>
 
-        {/* Product Name */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            {t.productName} <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="product_name"
-            defaultValue={initialData?.product_name}
-            required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            dir={language === 'ar' ? 'rtl' : 'ltr'}
-          />
-        </div>
+          {/* Product Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              {t.productName} <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="product_name"
+              defaultValue={initialData?.product_name}
+              required
+              className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              dir={language === 'ar' ? 'rtl' : 'ltr'}
+            />
+          </div>
 
-        {/* Price */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            {t.price} <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="number"
-            name="price"
-            defaultValue={initialData?.price}
-            step="0.001"
-            min="0"
-            required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            dir="ltr"
-          />
-        </div>
+          {/* Price */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              {t.price} <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              name="price"
+              defaultValue={initialData?.price}
+              step="0.001"
+              min="0"
+              required
+              className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              dir="ltr"
+            />
+          </div>
 
-        {/* Quantity */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            {t.quantity} <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="number"
-            name="quantity"
-            defaultValue={initialData?.quantity}
-            min="0"
-            required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            dir="ltr"
-          />
-        </div>
+          {/* Quantity */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              {t.quantity} <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              name="quantity"
+              defaultValue={initialData?.quantity}
+              min="0"
+              required
+              className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              dir="ltr"
+            />
+          </div>
 
-        {/* Expiry Date for Food Products */}
-        {type === 'food' && (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                {t.productionDate} <span className="text-red-500">*</span>
-              </label>
-              <div className="relative mt-1">
-                <Calendar className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
-                <input
-                  type="date"
-                  value={productionDate}
-                  onChange={(e) => setProductionDate(e.target.value)}
-                  required
-                  className="block w-full pr-10 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                />
+          {/* Expiry Date for Food Products */}
+          {type === 'food' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  {t.productionDate} <span className="text-red-500">*</span>
+                </label>
+                <div className="relative mt-1">
+                  <Calendar className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
+                  <input
+                    type="date"
+                    value={productionDate}
+                    onChange={(e) => setProductionDate(e.target.value)}
+                    required
+                    className="block w-full p-2 pr-10 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                </div>
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                {t.expiryDate} <span className="text-red-500">*</span>
-              </label>
-              <div className="relative mt-1">
-                <Calendar className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
-                <input
-                  type="date"
-                  value={expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
-                  required
-                  className="block w-full pr-10 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                />
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  {t.expiryDate} <span className="text-red-500">*</span>
+                </label>
+                <div className="relative mt-1">
+                  <Calendar className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
+                  <input
+                    type="date"
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                    required
+                    className="block w-full p-2 pr-10 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                </div>
               </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
 
         {/* Description */}
-        <div className="col-span-2">
+        <div>
           <label className="block text-sm font-medium text-gray-700">
             {t.description}
             <span className="text-gray-500 text-xs mr-1">({t.optional})</span>
@@ -354,7 +359,7 @@ export function VendorProductForm({
             name="description"
             defaultValue={initialData?.description}
             rows={3}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             dir={language === 'ar' ? 'rtl' : 'ltr'}
           />
         </div>
@@ -362,7 +367,7 @@ export function VendorProductForm({
 
       {/* Error Message */}
       {(error || uploadError) && (
-        <div className="rounded-md bg-red-50 p-4">
+        <div className="rounded-md bg-red-50 p-3 sm:p-4">
           <div className="flex">
             <div className="flex-shrink-0">
               <AlertTriangle className="h-5 w-5 text-red-400" />
@@ -375,21 +380,42 @@ export function VendorProductForm({
       )}
 
       {/* Form Actions */}
-      <div className="flex justify-end space-x-2 space-x-reverse">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 text-gray-700 hover:text-gray-900"
-        >
-          {t.cancel}
-        </button>
-        <button
-          type="submit"
-          disabled={isUploading}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
-        >
-          {isUploading ? t.uploading : initialData ? t.updateProduct : t.addProduct}
-        </button>
+      <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'justify-end space-x-2 space-x-reverse'} mt-6`}>
+        {isMobile ? (
+          <>
+            <button
+              type="submit"
+              disabled={isUploading}
+              className="w-full py-2.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {isUploading ? t.uploading : initialData ? t.updateProduct : t.addProduct}
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-full py-2.5 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+            >
+              {t.cancel}
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 text-gray-700 hover:text-gray-900"
+            >
+              {t.cancel}
+            </button>
+            <button
+              type="submit"
+              disabled={isUploading}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {isUploading ? t.uploading : initialData ? t.updateProduct : t.addProduct}
+            </button>
+          </>
+        )}
       </div>
     </form>
   );
