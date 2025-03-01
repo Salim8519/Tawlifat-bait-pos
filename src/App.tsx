@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { useBusinessSettings } from './hooks/useBusinessSettings';
 import { LoginPage } from './pages/LoginPage';
@@ -41,28 +41,37 @@ import { Toaster } from 'react-hot-toast';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { UpdatePasswordPage } from './pages/UpdatePasswordPage';
 import ExpensesPage from './pages/ExpensesPage';
-import { AuthProvider, useAuthContext } from './context/AuthProvider';
-import { LoadingScreen } from './components/common/LoadingScreen';
 import './i18n';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuthContext();
-  const { settings, isLoading: settingsLoading } = useBusinessSettings();
-  const { language } = useLanguageStore();
+  const { user } = useAuthStore();
+  const { settings, isLoading } = useBusinessSettings();
+  const location = useLocation();
+  const navigate = useNavigate();
   
-  if (isLoading) {
-    const loadingMessage = language === 'ar' ? 'جاري التحقق من الهوية...' : 'Checking authentication...';
-    return <LoadingScreen message={loadingMessage} />;
-  }
-  
-  if (!isAuthenticated) {
-    return null; // AuthProvider will handle the redirect
+  useEffect(() => {
+    // If user is not authenticated, redirect to login
+    if (!user) {
+      // Save the current location to redirect back after login
+      const currentPath = location.pathname + location.search + location.hash;
+      sessionStorage.setItem('redirectPath', currentPath);
+      navigate('/login', { replace: true });
+    }
+  }, [user, navigate, location]);
+
+  // If not authenticated, show a loading state instead of immediately redirecting
+  // This prevents the white screen flash
+  if (!user) {
+    return <div className="flex items-center justify-center h-screen">
+      <p className="text-gray-500">Checking authentication...</p>
+    </div>;
   }
 
   // Wait for settings to load
-  if (settingsLoading) {
-    const loadingMessage = language === 'ar' ? 'جاري تحميل الإعدادات...' : 'Loading settings...';
-    return <LoadingScreen message={loadingMessage} />;
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-screen">
+      <p className="text-gray-500">Loading settings...</p>
+    </div>;
   }
 
   return <>{children}</>;
@@ -71,10 +80,15 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const { user } = useAuthStore();
   const location = useLocation();
-  const { isAuthenticated } = useAuthContext();
+  const [authChecked, setAuthChecked] = useState(false);
+  
+  useEffect(() => {
+    // Mark auth as checked after initial render
+    setAuthChecked(true);
+  }, []);
 
   // Redirect to login if on root path and not authenticated
-  if (location.pathname === '/' && !isAuthenticated) {
+  if (location.pathname === '/' && !user && authChecked) {
     return <Navigate to="/login" replace />;
   }
 
@@ -132,13 +146,55 @@ function AppRoutes() {
           </>
         )}
       </Route>
+      {/* Catch-all route for any undefined routes */}
+      <Route path="*" element={
+        <RequireAuth>
+          <Navigate to="/dashboard" replace />
+        </RequireAuth>
+      } />
     </Routes>
   );
 }
 
-function AppContent() {
+export default function App() {
   const { user } = useAuthStore();
   const { language } = useLanguageStore();
+  const { getCurrentBranch } = useBusinessStore();
+  
+  // Add a session check on app initialization
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        // Import dynamically to avoid circular dependencies
+        const { supabase } = await import('./lib/supabase');
+        const { data } = await supabase.auth.getSession();
+        
+        if (!data.session && user) {
+          // Session expired but user still in store
+          // Import dynamically to avoid circular dependencies
+          const { useAuth } = await import('./hooks/useAuth');
+          const { signOut } = useAuth();
+          await signOut();
+          
+          // Clear any persisted state that might be causing issues
+          localStorage.removeItem('auth-storage');
+          sessionStorage.clear();
+          
+          // Force reload to clear any stale state
+          window.location.href = '/login';
+        }
+      } catch (error) {
+        console.error('Session check failed:', error);
+      }
+    };
+    
+    checkSession();
+    
+    // Set up periodic session checks
+    const intervalId = setInterval(checkSession, 60000); // Check every minute
+    
+    return () => clearInterval(intervalId);
+  }, [user]);
   
   useEffect(() => {
     if (user?.businessCode) {
@@ -165,17 +221,9 @@ function AppContent() {
   return (
     <>
       <Toaster position={language === 'ar' ? 'top-left' : 'top-right'} />
-      <AppRoutes />
+      <Router>
+        <AppRoutes />
+      </Router>
     </>
-  );
-}
-
-export default function App() {
-  return (
-    <Router>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </Router>
   );
 }

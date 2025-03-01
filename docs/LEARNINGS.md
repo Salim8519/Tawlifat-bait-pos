@@ -242,3 +242,17 @@ This efficiently fetches the business name by filtering for the owner role and u
    - Cache cart quantities
    - Batch stock updates
    - Precompute disabled states
+
+## Authentication and Session Management
+
+1. **Browser-Specific Authentication Issues**:
+   - Chrome has unique cookie handling that can cause session persistence issues
+   - Implement explicit cookie cleanup for Supabase auth cookies (`sb-` prefixed cookies)
+   - Use custom storage implementation with error handling for more reliable session persistence
+   - Periodic session validation prevents white screens when sessions expire silently
+
+2. **Robust Authentication Flow**:
+   - Save redirect paths in sessionStorage before authentication redirects
+   - Show loading states instead of white screens during auth checks
+   - Implement catch-all routes to handle undefined navigation paths
+   - Add multiple layers of auth verification (component-level, route-level, and periodic checks)

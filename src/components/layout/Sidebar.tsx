@@ -184,16 +184,16 @@ export function Sidebar({ mobile = false, onCloseMobile }: SidebarProps) {
                   <NavItem to="/settings" icon={Settings} onClick={handleNavClick}>
                     {language === 'ar' ? 'الإعدادات' : 'Settings'}
                   </NavItem>
-                  <NavItem to="/barcode-settings" icon={Printer} onClick={handleNavClick}>
-                    {language === 'ar' ? 'إعدادات الباركود' : 'Barcode Settings'}
-                  </NavItem>
-                  <NavItem to="/barcode-settings-v2" icon={Printer} onClick={handleNavClick}>
-                    {language === 'ar' ? 'إعدادات الباركود V2' : 'Barcode Settings V2'}
-                  </NavItem>
                   <NavItem to="/developer" icon={Code} onClick={handleNavClick}>
                     {language === 'ar' ? 'المطور' : 'Developer'}
                   </NavItem>
                 </>
+              )}
+              
+              {(user?.role === 'owner' || user?.role === 'manager' || user?.role === 'cashier') && (
+                <NavItem to="/barcode-settings-v2" icon={Printer} onClick={handleNavClick}>
+                  {language === 'ar' ? 'إعدادات الباركود' : 'Barcode Settings'}
+                </NavItem>
               )}
             </>
           )}

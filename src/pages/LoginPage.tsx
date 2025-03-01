@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { Store, AlertCircle } from 'lucide-react';
 import { useLanguageStore } from '../store/useLanguageStore';
@@ -19,8 +19,26 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
 
+  // Clear any auth errors on mount
+  useEffect(() => {
+    // Clear any stale cookies that might be causing issues
+    document.cookie.split(';').forEach(cookie => {
+      const [name] = cookie.split('=');
+      if (name.trim().startsWith('sb-')) {
+        document.cookie = `${name.trim()}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+      }
+    });
+  }, []);
+
   // Redirect if already logged in
   if (user) {
+    // Check if there's a saved redirect path
+    const redirectPath = sessionStorage.getItem('redirectPath');
+    if (redirectPath && redirectPath !== '/login') {
+      // Clear the saved path
+      sessionStorage.removeItem('redirectPath');
+      return <Navigate to={redirectPath} replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -47,7 +65,10 @@ export function LoginPage() {
     // Proceed with login
     const { user, profile } = await signIn(sanitizedEmail, password);
     if (user && profile) {
-      const redirectPath = getRedirectPath(profile);
+      // Check if there's a saved redirect path
+      const redirectPath = sessionStorage.getItem('redirectPath') || getRedirectPath(profile);
+      // Clear the saved path
+      sessionStorage.removeItem('redirectPath');
       navigate(redirectPath);
     } else if (remainingAttempts > 0) {
       setLocalError(`Login failed. ${remainingAttempts} attempts remaining.`);

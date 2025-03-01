@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useBarcodeServiceV2 } from '../hooks/useBarcodeServiceV2';
 import { BarcodeDataV2, BarcodeSettingsV2, PRINTER_TEMPLATES } from '../services/barcodeServiceV2';
 import { Button, Card, Form, Input, Select, Slider, Switch, Tabs, message, Upload } from 'antd';
@@ -31,10 +31,10 @@ const BarcodeSettingsV2Page: React.FC = () => {
 
   const [previewData, setPreviewData] = useState<BarcodeDataV2>({
     barcode: '12345678901',
-    productName: 'Sample Product',
+    productName: language === 'ar' ? 'اسم المنتج' : 'Sample Product',
     price: 10.500,
-    businessName: 'Tawliat Bait',
-    vendorName: 'Sample Vendor',
+    businessName: language === 'ar' ? 'اسم المؤسسة' : 'Tawliat Bait',
+    vendorName: language === 'ar' ? 'اسم المورد' : 'Sample Vendor',
     expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     productionDate: new Date().toISOString().split('T')[0],
     currency: 'OMR'
@@ -148,9 +148,25 @@ const BarcodeSettingsV2Page: React.FC = () => {
   };
 
   // Generate preview on component mount
-  React.useEffect(() => {
+  useEffect(() => {
     generatePreview();
   }, []);
+
+  // Update preview data when language changes
+  useEffect(() => {
+    setPreviewData({
+      ...previewData,
+      productName: language === 'ar' ? 'اسم المنتج' : 'Sample Product',
+      businessName: language === 'ar' ? 'اسم المؤسسة' : 'Tawliat Bait',
+      vendorName: language === 'ar' ? 'اسم المورد' : 'Sample Vendor',
+    });
+    // We don't call generatePreview() here as it will be called when previewData changes
+  }, [language]);
+
+  // Generate preview when previewData changes
+  useEffect(() => {
+    generatePreview();
+  }, [previewData]);
 
   return (
     <div className="barcode-settings-page">
