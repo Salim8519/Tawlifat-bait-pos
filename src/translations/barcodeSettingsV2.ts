@@ -81,6 +81,17 @@ export const barcodeSettingsV2Translations = {
     rtl: 'من اليمين إلى اليسار',
     darkMode: 'الوضع الداكن',
     
+    // Font weight settings
+    businessNameFontWeight: 'سمك خط اسم المؤسسة',
+    productNameFontWeight: 'سمك خط اسم المنتج',
+    priceFontWeight: 'سمك خط السعر',
+    barcodeFontWeight: 'سمك خط الباركود',
+    datesFontWeight: 'سمك خط التواريخ',
+    normal: 'عادي',
+    bold: 'غامق',
+    bolder: 'أكثر غمقاً',
+    lighter: 'أخف',
+    
     // Alignment options
     left: 'يسار',
     center: 'وسط',
@@ -176,6 +187,17 @@ export const barcodeSettingsV2Translations = {
     priceFontSize: 'Price Font Size (pt)',
     rtl: 'RTL (Right-to-Left)',
     darkMode: 'Dark Mode',
+    
+    // Font weight settings
+    businessNameFontWeight: 'Business Name Font Weight',
+    productNameFontWeight: 'Product Name Font Weight',
+    priceFontWeight: 'Price Font Weight',
+    barcodeFontWeight: 'Barcode Text Font Weight',
+    datesFontWeight: 'Dates Font Weight',
+    normal: 'Normal',
+    bold: 'Bold',
+    bolder: 'Bolder',
+    lighter: 'Lighter',
     
     // Alignment options
     left: 'Left',

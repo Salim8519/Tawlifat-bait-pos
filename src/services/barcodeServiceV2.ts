@@ -48,6 +48,13 @@ export interface BarcodeSettingsV2 {
   priceFontSize: number;
   dateFontSize: number;
   
+  // Font weight settings
+  businessNameFontWeight: 'normal' | 'bold' | 'bolder' | 'lighter' | number;
+  productNameFontWeight: 'normal' | 'bold' | 'bolder' | 'lighter' | number;
+  priceFontWeight: 'normal' | 'bold' | 'bolder' | 'lighter' | number;
+  barcodeFontWeight: 'normal' | 'bold' | 'bolder' | 'lighter' | number;
+  datesFontWeight: 'normal' | 'bold' | 'bolder' | 'lighter' | number;
+  
   // Spacing settings
   lineSpacing: number;     // Space between lines
   sectionSpacing: number;  // Space between sections
@@ -137,6 +144,13 @@ export const DEFAULT_BARCODE_SETTINGS: BarcodeSettingsV2 = {
   barcodeFontSize: 8,
   priceFontSize: 10,
   dateFontSize: 6,
+  
+  // Font weight settings
+  businessNameFontWeight: 'normal',
+  productNameFontWeight: 'bold',
+  priceFontWeight: 'bold',
+  barcodeFontWeight: 'normal',
+  datesFontWeight: 'normal',
   
   // Spacing settings
   lineSpacing: 1,          // Space between lines
@@ -259,6 +273,11 @@ function generateBarcodeHTML(
     rtl,
     darkMode,
     textAlignment,
+    businessNameFontWeight,
+    productNameFontWeight,
+    priceFontWeight,
+    barcodeFontWeight,
+    datesFontWeight,
     // other settings...
   } = settings;
 
@@ -290,6 +309,11 @@ function generateBarcodeHTML(
     --bg-color: ${darkMode ? 'black' : 'white'};
     --text-align: ${textAlignment};
     --direction: ${rtl ? 'rtl' : 'ltr'};
+    --business-name-font-weight: ${businessNameFontWeight};
+    --product-name-font-weight: ${productNameFontWeight};
+    --price-font-weight: ${priceFontWeight};
+    --barcode-font-weight: ${barcodeFontWeight};
+    --dates-font-weight: ${datesFontWeight};
   `;
 
   // Base CSS styles
@@ -327,7 +351,7 @@ function generateBarcodeHTML(
     
     .business-name {
       font-size: var(--business-name-font-size);
-      font-weight: bold;
+      font-weight: var(--business-name-font-weight);
       margin-bottom: calc(var(--line-spacing) * var(--global-spacing));
     }
     
@@ -342,7 +366,7 @@ function generateBarcodeHTML(
     
     .product-name {
       font-size: var(--product-name-font-size);
-      font-weight: bold;
+      font-weight: var(--product-name-font-weight);
       margin-bottom: calc(var(--line-spacing) * var(--global-spacing));
       word-wrap: break-word;
     }
@@ -359,18 +383,20 @@ function generateBarcodeHTML(
     
     .barcode-text {
       font-size: var(--barcode-font-size);
+      font-weight: var(--barcode-font-weight);
       margin-top: calc(var(--line-spacing) * var(--global-spacing));
       text-align: var(--text-align); /* Apply the text alignment to the barcode text */
     }
     
     .price-section {
       font-size: var(--price-font-size);
-      font-weight: bold;
+      font-weight: var(--price-font-weight);
       margin-bottom: calc(var(--section-spacing) * var(--global-spacing));
     }
     
     .dates-section {
       font-size: var(--date-font-size);
+      font-weight: var(--dates-font-weight);
       display: flex;
       flex-direction: row;
       justify-content: center;

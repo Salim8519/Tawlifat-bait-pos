@@ -526,6 +526,23 @@ const BarcodeSettingsV2Page: React.FC = () => {
                     <span>{settings.businessNameFontSize} pt</span>
                   </Form.Item>
                   
+                  <Form.Item label={t.businessNameFontWeight || "Business Name Font Weight"}>
+                    <Select 
+                      value={settings.businessNameFontWeight}
+                      onChange={value => handleSettingsChange({ businessNameFontWeight: value })}
+                    >
+                      <Option value="normal">{t.normal || "Normal"}</Option>
+                      <Option value="bold">{t.bold || "Bold"}</Option>
+                      <Option value="bolder">{t.bolder || "Bolder"}</Option>
+                      <Option value="lighter">{t.lighter || "Lighter"}</Option>
+                      <Option value={500}>500</Option>
+                      <Option value={600}>600</Option>
+                      <Option value={700}>700</Option>
+                      <Option value={800}>800</Option>
+                      <Option value={900}>900</Option>
+                    </Select>
+                  </Form.Item>
+                  
                   <Form.Item label={t.productNameFontSize}>
                     <Slider 
                       min={5} 
@@ -536,6 +553,23 @@ const BarcodeSettingsV2Page: React.FC = () => {
                     <span>{settings.productNameFontSize} pt</span>
                   </Form.Item>
                   
+                  <Form.Item label={t.productNameFontWeight || "Product Name Font Weight"}>
+                    <Select 
+                      value={settings.productNameFontWeight}
+                      onChange={value => handleSettingsChange({ productNameFontWeight: value })}
+                    >
+                      <Option value="normal">{t.normal || "Normal"}</Option>
+                      <Option value="bold">{t.bold || "Bold"}</Option>
+                      <Option value="bolder">{t.bolder || "Bolder"}</Option>
+                      <Option value="lighter">{t.lighter || "Lighter"}</Option>
+                      <Option value={500}>500</Option>
+                      <Option value={600}>600</Option>
+                      <Option value={700}>700</Option>
+                      <Option value={800}>800</Option>
+                      <Option value={900}>900</Option>
+                    </Select>
+                  </Form.Item>
+                  
                   <Form.Item label={t.priceFontSize}>
                     <Slider 
                       min={6} 
@@ -544,6 +578,57 @@ const BarcodeSettingsV2Page: React.FC = () => {
                       onChange={value => handleSettingsChange({ priceFontSize: value })}
                     />
                     <span>{settings.priceFontSize} pt</span>
+                  </Form.Item>
+                  
+                  <Form.Item label={t.priceFontWeight || "Price Font Weight"}>
+                    <Select 
+                      value={settings.priceFontWeight}
+                      onChange={value => handleSettingsChange({ priceFontWeight: value })}
+                    >
+                      <Option value="normal">{t.normal || "Normal"}</Option>
+                      <Option value="bold">{t.bold || "Bold"}</Option>
+                      <Option value="bolder">{t.bolder || "Bolder"}</Option>
+                      <Option value="lighter">{t.lighter || "Lighter"}</Option>
+                      <Option value={500}>500</Option>
+                      <Option value={600}>600</Option>
+                      <Option value={700}>700</Option>
+                      <Option value={800}>800</Option>
+                      <Option value={900}>900</Option>
+                    </Select>
+                  </Form.Item>
+                  
+                  <Form.Item label={t.barcodeFontWeight || "Barcode Text Font Weight"}>
+                    <Select 
+                      value={settings.barcodeFontWeight}
+                      onChange={value => handleSettingsChange({ barcodeFontWeight: value })}
+                    >
+                      <Option value="normal">{t.normal || "Normal"}</Option>
+                      <Option value="bold">{t.bold || "Bold"}</Option>
+                      <Option value="bolder">{t.bolder || "Bolder"}</Option>
+                      <Option value="lighter">{t.lighter || "Lighter"}</Option>
+                      <Option value={500}>500</Option>
+                      <Option value={600}>600</Option>
+                      <Option value={700}>700</Option>
+                      <Option value={800}>800</Option>
+                      <Option value={900}>900</Option>
+                    </Select>
+                  </Form.Item>
+                  
+                  <Form.Item label={t.datesFontWeight || "Dates Font Weight"}>
+                    <Select 
+                      value={settings.datesFontWeight}
+                      onChange={value => handleSettingsChange({ datesFontWeight: value })}
+                    >
+                      <Option value="normal">{t.normal || "Normal"}</Option>
+                      <Option value="bold">{t.bold || "Bold"}</Option>
+                      <Option value="bolder">{t.bolder || "Bolder"}</Option>
+                      <Option value="lighter">{t.lighter || "Lighter"}</Option>
+                      <Option value={500}>500</Option>
+                      <Option value={600}>600</Option>
+                      <Option value={700}>700</Option>
+                      <Option value={800}>800</Option>
+                      <Option value={900}>900</Option>
+                    </Select>
                   </Form.Item>
                   
                   <Form.Item label={t.rtl}>

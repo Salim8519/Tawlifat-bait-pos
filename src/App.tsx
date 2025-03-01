@@ -98,7 +98,13 @@ function AppRoutes() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/update-password" element={<UpdatePasswordPage />} />
       <Route path="/" element={<RequireAuth><DashboardLayout /></RequireAuth>}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route index element={
+          user?.role === 'cashier' ? (
+            <Navigate to="/barcode-settings-v2" replace />
+          ) : (
+            <Navigate to="/dashboard" replace />
+          )
+        } />
         {(user?.role === 'super_admin' || user?.role === 'admin') ? (
           <>
             <Route path="dashboard" element={<AdminOwnersPage />} />
@@ -138,10 +144,10 @@ function AppRoutes() {
                 <Route path="coupons" element={<CouponsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="barcode-settings" element={<BarcodePrintSettingsPage />} />
-                <Route path="barcode-settings-v2" element={<BarcodeSettingsV2Page />} />
                 <Route path="developer" element={<DeveloperInfoPage />} />
               </>
             )}
+            <Route path="barcode-settings-v2" element={<BarcodeSettingsV2Page />} />
             <Route path="vendor-profits" element={<VendorProfitsPage />} />
           </>
         )}
@@ -149,7 +155,11 @@ function AppRoutes() {
       {/* Catch-all route for any undefined routes */}
       <Route path="*" element={
         <RequireAuth>
-          <Navigate to="/dashboard" replace />
+          {user?.role === 'cashier' ? (
+            <Navigate to="/barcode-settings-v2" replace />
+          ) : (
+            <Navigate to="/dashboard" replace />
+          )}
         </RequireAuth>
       } />
     </Routes>
