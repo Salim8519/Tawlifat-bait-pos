@@ -84,7 +84,7 @@ export const vendorDashboardTranslations = {
     overdue: 'متأخر',
     noRentalsFound: 'لم يتم العثور على إيجارات',
     noRentalHistoryFound: 'لم يتم العثور على سجل إيجارات',
-    currency: 'ر.س',
+    currency: 'ر.ع',
     // Filter translations
     filterByYear: 'تصفية حسب السنة:',
     filterByMonth: 'تصفية حسب الشهر:',
@@ -178,7 +178,7 @@ export const vendorDashboardTranslations = {
     overdue: 'Overdue',
     noRentalsFound: 'No rentals found',
     noRentalHistoryFound: 'No rental history found',
-    currency: 'SAR',
+    currency: 'OMR',
     // Filter translations
     filterByYear: 'Filter by Year:',
     filterByMonth: 'Filter by Month:',

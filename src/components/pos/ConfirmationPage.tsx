@@ -226,15 +226,40 @@ export function ConfirmationPage({
                   <label className="text-sm text-gray-700 mb-1">
                     {t.printerSize}:
                   </label>
-                  <select
-                    value={selectedPrinterWidth}
-                    onChange={(e) => setSelectedPrinterWidth(e.target.value as any)}
-                    className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="57mm">{t.printerSize57mm}</option>
-                    <option value="80mm">{t.printerSize80mm}</option>
-                    <option value="85mm">{t.printerSize85mm}</option>
-                  </select>
+                  <div className="flex space-x-2">
+                    <select
+                      value={selectedPrinterWidth === 'auto' ? 'auto' : 'custom'}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === 'auto') {
+                          setSelectedPrinterWidth('auto');
+                        } else {
+                          // If custom is selected and no previous custom value, set a default
+                          if (selectedPrinterWidth === 'auto') {
+                            setSelectedPrinterWidth('80');
+                          }
+                        }
+                      }}
+                      className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                      <option value="auto">{t.printerSizeAuto || 'Auto'}</option>
+                      <option value="custom">{t.printerSizeCustom || 'Custom'}</option>
+                    </select>
+                    
+                    {selectedPrinterWidth !== 'auto' && (
+                      <div className="flex items-center">
+                        <input
+                          type="number"
+                          value={selectedPrinterWidth}
+                          onChange={(e) => setSelectedPrinterWidth(e.target.value)}
+                          min="20"
+                          max="150"
+                          className="w-16 px-2 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                        <span className="ml-1 text-sm text-gray-600">mm</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <button
                   onClick={handlePrintReceipt}
