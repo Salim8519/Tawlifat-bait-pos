@@ -6,7 +6,7 @@ import { useBusinessStore } from '../store/useBusinessStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { getBranchesByBusinessCode } from '../services/businessService';
 import { BranchFilter } from '../components/products/BranchFilter';
-import { BarcodeButton } from '../components/products/BarcodeButton';
+import { BarcodeButtonV2 } from '../components/products/BarcodeButtonV2';
 import { upcomingProductsTranslations } from '../translations/upcomingProducts';
 import { getProducts, approveProduct, deleteProduct } from '../services/productService';
 import type { Product, ProductFilter } from '../types/product';
@@ -405,7 +405,7 @@ export function UpcomingProductsPage() {
                           >
                             {t.review}
                           </button>
-                          <BarcodeButton 
+                          <BarcodeButtonV2 
                             product={product} 
                             className="ml-2"
                             userProfile={userProfile}

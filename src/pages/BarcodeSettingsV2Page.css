@@ -1,0 +1,48 @@
+.page-content {
+  padding: 20px;
+}
+
+.preview-container,
+.settings-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.preview-card,
+.settings-card {
+  margin-bottom: 20px;
+}
+
+.preview-controls {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+.preview-frame {
+  margin-bottom: 20px;
+}
+
+.template-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.settings-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* RTL support for Arabic */
+[dir="rtl"] .preview-controls,
+[dir="rtl"] .template-buttons,
+[dir="rtl"] .settings-actions {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .settings-actions {
+  justify-content: flex-start;
+}

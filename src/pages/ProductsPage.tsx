@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, AlertTriangle, Package } from 'lucide-react';
 import { ProductForm } from '../components/products/ProductForm';
 import { BranchSelector } from '../components/products/BranchSelector';
-import { BarcodeButton } from '../components/products/BarcodeButton';
+import { BarcodeButtonV2 } from '../components/products/BarcodeButtonV2';
 import { useLanguageStore } from '../store/useLanguageStore'; 
 import { useAuthStore } from '../store/useAuthStore';
 import { useBusinessStore } from '../store/useBusinessStore'; 
@@ -564,7 +564,7 @@ export function ProductsPage() {
                           >
                             {t.delete}
                           </button>
-                          <BarcodeButton 
+                          <BarcodeButtonV2 
                             product={product} 
                             className="ml-2"
                             userProfile={userProfile}

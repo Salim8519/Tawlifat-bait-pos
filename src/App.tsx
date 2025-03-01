@@ -32,6 +32,7 @@ import { VendorProfitsPage } from './pages/VendorProfitsPage';
 import MonthlyVendorTaxesPage from './pages/MonthlyVendorTaxesPage';
 import { VendorSpacesPage } from './pages/VendorSpacesPage';
 import { BarcodePrintSettingsPage } from './pages/BarcodePrintSettingsPage';
+import BarcodeSettingsV2Page from './pages/BarcodeSettingsV2Page';
 import { useAuthStore } from './store/useAuthStore';
 import { useLanguageStore } from './store/useLanguageStore';
 import { useBusinessStore } from './store/useBusinessStore';
@@ -40,23 +41,28 @@ import { Toaster } from 'react-hot-toast';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { UpdatePasswordPage } from './pages/UpdatePasswordPage';
 import ExpensesPage from './pages/ExpensesPage';
+import { AuthProvider, useAuthContext } from './context/AuthProvider';
+import { LoadingScreen } from './components/common/LoadingScreen';
 import './i18n';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { user } = useAuthStore();
-  const { settings, isLoading } = useBusinessSettings();
-  const location = useLocation();
+  const { isAuthenticated, isLoading } = useAuthContext();
+  const { settings, isLoading: settingsLoading } = useBusinessSettings();
+  const { language } = useLanguageStore();
   
-  if (!user) {
-    // Redirect to login and save the attempted location
-    return <Navigate to="/login" replace />;
+  if (isLoading) {
+    const loadingMessage = language === 'ar' ? 'جاري التحقق من الهوية...' : 'Checking authentication...';
+    return <LoadingScreen message={loadingMessage} />;
+  }
+  
+  if (!isAuthenticated) {
+    return null; // AuthProvider will handle the redirect
   }
 
   // Wait for settings to load
-  if (isLoading) {
-    return <div className="flex items-center justify-center h-screen">
-      <p className="text-gray-500">Loading settings...</p>
-    </div>;
+  if (settingsLoading) {
+    const loadingMessage = language === 'ar' ? 'جاري تحميل الإعدادات...' : 'Loading settings...';
+    return <LoadingScreen message={loadingMessage} />;
   }
 
   return <>{children}</>;
@@ -65,9 +71,10 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const { user } = useAuthStore();
   const location = useLocation();
+  const { isAuthenticated } = useAuthContext();
 
   // Redirect to login if on root path and not authenticated
-  if (location.pathname === '/' && !user) {
+  if (location.pathname === '/' && !isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
@@ -117,6 +124,7 @@ function AppRoutes() {
                 <Route path="coupons" element={<CouponsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="barcode-settings" element={<BarcodePrintSettingsPage />} />
+                <Route path="barcode-settings-v2" element={<BarcodeSettingsV2Page />} />
                 <Route path="developer" element={<DeveloperInfoPage />} />
               </>
             )}
@@ -128,10 +136,9 @@ function AppRoutes() {
   );
 }
 
-export default function App() {
+function AppContent() {
   const { user } = useAuthStore();
   const { language } = useLanguageStore();
-  const { getCurrentBranch } = useBusinessStore();
   
   useEffect(() => {
     if (user?.businessCode) {
@@ -158,9 +165,17 @@ export default function App() {
   return (
     <>
       <Toaster position={language === 'ar' ? 'top-left' : 'top-right'} />
-      <Router>
-        <AppRoutes />
-      </Router>
+      <AppRoutes />
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </Router>
   );
 }
