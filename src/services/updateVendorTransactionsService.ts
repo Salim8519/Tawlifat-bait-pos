@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import type { CartItem } from '../types/pos';
 import { vendorTransactionService } from './vendorTransactionService';
+import { ensureBusinessName } from './businessService';
 
 interface VendorGroup {
   vendorCode: string;
@@ -33,28 +34,14 @@ export async function updateVendorTransactionsFromSale(
       return;
     }
 
-    // Get business name from profiles if not provided
-    let finalBusinessName = businessName;
-    if (!finalBusinessName) {
-      try {
-        // Get the business name from the owner's profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('business_name')
-          .eq('business_code', businessCode)
-          .eq('role', 'owner')
-          .single();
-        
-        if (profile?.business_name) {
-          finalBusinessName = profile.business_name;
-          console.log('Retrieved business name from profile:', finalBusinessName);
-        } else {
-          throw new Error('Business name not found in profile');
-        }
-      } catch (error) {
-        console.error('Error fetching business name from profile:', error);
-        throw new Error('Could not determine business name for vendor transaction');
-      }
+    // Use the ensureBusinessName function to get a valid business name
+    let finalBusinessName: string;
+    try {
+      finalBusinessName = await ensureBusinessName(businessCode, businessName);
+      console.log('Using business name for vendor transactions:', finalBusinessName);
+    } catch (error) {
+      console.error('Error ensuring business name:', error);
+      throw new Error('Could not determine business name for vendor transaction');
     }
 
     console.log(`Found ${vendorItems.length} vendor products to process`);

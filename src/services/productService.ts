@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { Product, ProductFilter } from '../types/product';
+import { ensureBusinessName } from './businessService';
 
 export interface VendorProductsFilter {
   businessCode: string;
@@ -125,127 +126,157 @@ export async function getVendorProducts(filter: VendorProductsFilter): Promise<P
 }
 
 export async function createProduct(product: Omit<Product, 'product_id' | 'date_of_creation'>, defaultBranch?: string): Promise<Product | null> {
-  // Get the business name based on whether it's a vendor or owner
-  const { data: profileData, error: profileError } = await supabase
-    .from('profiles')
-    .select('business_name, role, "vendor_business _name"')
-    .eq('business_code', product.business_code_if_vendor || product.business_code_of_owner)
-    .eq('role', product.business_code_if_vendor ? 'vendor' : 'owner')
-    .maybeSingle();
+  try {
+    // Get the business name using our robust ensureBusinessName function
+    let businessName: string;
+    
+    if (product.business_code_if_vendor) {
+      // For vendor products, get the vendor's business name
+      businessName = await ensureBusinessName(product.business_code_if_vendor);
+      console.log(`Using vendor business name: ${businessName}`);
+    } else {
+      // For owner products, get the owner's business name
+      businessName = await ensureBusinessName(product.business_code_of_owner);
+      console.log(`Using owner business name: ${businessName}`);
+    }
 
-  if (profileError) {
-    console.error('Error fetching business name:', profileError);
-    throw profileError;
-  }
+    const {
+      product_name,
+      type,
+      current_page,
+      expiry_date,
+      production_date,
+      quantity,
+      price,
+      barcode,
+      image_url,
+      description,
+      trackable,
+      business_code_of_owner,
+      business_code_if_vendor,
+      branch_name = defaultBranch || 'main', // Use provided branch or default to 'main'
+      accepted
+    } = product;
 
-  // Use vendor business name if it's a vendor, otherwise use owner's business name
-  const businessName = product.business_code_if_vendor 
-    ? profileData?.['vendor_business _name']
-    : profileData?.business_name;
-  const {
-    product_name,
-    type,
-    current_page,
-    expiry_date,
-    production_date,
-    quantity,
-    price,
-    barcode,
-    image_url,
-    description,
-    trackable,
-    business_code_of_owner,
-    business_code_if_vendor,
-    branch_name = defaultBranch || 'main', // Use provided branch or default to 'main'
-    accepted
-  } = product;
+    const productData = {
+      product_name,
+      type,
+      business_name_of_product: businessName,
+      current_page: current_page || 'upcoming_products',
+      expiry_date,
+      production_date,
+      quantity: quantity || 0,
+      price: price || 0,
+      barcode,
+      image_url,
+      description,
+      trackable: trackable || false,
+      business_code_of_owner,
+      business_code_if_vendor,
+      branch_name,
+      accepted: accepted || false,
+      date_of_creation: new Date().toISOString()
+    };
 
-  const productData = {
-    product_name,
-    type,
-    business_name_of_product: businessName || 'Unknown Business',
-    current_page: current_page || 'upcoming_products',
-    expiry_date,
-    production_date,
-    quantity: quantity || 0,
-    price: price || 0,
-    barcode,
-    image_url,
-    description,
-    trackable: trackable || false,
-    business_code_of_owner,
-    business_code_if_vendor,
-    branch_name,
-    accepted: accepted || false,
-    date_of_creation: new Date().toISOString()
-  };
+    const { data, error } = await supabase
+      .from('products')
+      .insert([productData])
+      .select()
+      .single();
 
-  const { data, error } = await supabase
-    .from('products')
-    .insert([productData])
-    .select()
-    .single();
+    if (error) {
+      console.error('Error creating product:', error);
+      throw error;
+    }
 
-  if (error) {
-    console.error('Error creating product:', error);
+    return data;
+  } catch (error) {
+    console.error('Error in createProduct:', error);
     throw error;
   }
-
-  return data;
 }
 
 export async function updateProduct(productId: number, updates: Partial<Product>): Promise<Product | null> {
-  // Remove any fields that don't exist in the table schema
-  const {
-    product_name,
-    type,
-    production_date,
-    current_page,
-    expiry_date,
-    quantity,
-    price,
-    barcode,
-    image_url,
-    description,
-    trackable,
-    business_code_of_owner,
-    business_code_if_vendor,
-    branch_name,
-    accepted,
-    rejection_reason
-  } = updates;
+  try {
+    // If we're updating business codes, we should also update the business name
+    let businessNameUpdate = {};
+    
+    if (updates.business_code_if_vendor) {
+      // For vendor products, get the vendor's business name
+      const vendorBusinessName = await ensureBusinessName(updates.business_code_if_vendor);
+      console.log(`Updating to vendor business name: ${vendorBusinessName}`);
+      businessNameUpdate = { business_name_of_product: vendorBusinessName };
+    } else if (updates.business_code_of_owner) {
+      // For owner products, get the owner's business name
+      const ownerBusinessName = await ensureBusinessName(updates.business_code_of_owner);
+      console.log(`Updating to owner business name: ${ownerBusinessName}`);
+      businessNameUpdate = { business_name_of_product: ownerBusinessName };
+    }
+    
+    // Remove any fields that don't exist in the table schema
+    const {
+      product_name,
+      type,
+      production_date,
+      current_page,
+      expiry_date,
+      quantity,
+      price,
+      barcode,
+      image_url,
+      description,
+      trackable,
+      business_code_of_owner,
+      business_code_if_vendor,
+      branch_name,
+      accepted,
+      rejection_reason
+    } = updates;
 
-  const updateData = {
-    ...(product_name && { product_name }),
-    ...(type && { type }),
-    ...(production_date && { production_date }),
-    ...(current_page && { current_page }),
-    ...(expiry_date && { expiry_date }),
-    ...(quantity !== undefined && { quantity }),
-    ...(price !== undefined && { price }),
-    ...(barcode && { barcode }),
-    ...(image_url && { image_url }),
-    ...(description && { description }),
-    ...(trackable !== undefined && { trackable }),
-    ...(business_code_of_owner && { business_code_of_owner }),
-    ...(business_code_if_vendor && { business_code_if_vendor }),
-    ...(branch_name && { branch_name }),
-    ...(accepted !== undefined && { accepted }),
-    ...(rejection_reason && { rejection_reason })
-  };
+    const updateData = {
+      ...(product_name && { product_name }),
+      ...(type && { type }),
+      ...(production_date && { production_date }),
+      ...(current_page && { current_page }),
+      ...(expiry_date && { expiry_date }),
+      ...(quantity !== undefined && { quantity }),
+      ...(price !== undefined && { price }),
+      ...(barcode && { barcode }),
+      ...(image_url && { image_url }),
+      ...(description && { description }),
+      ...(trackable !== undefined && { trackable }),
+      ...(business_code_of_owner && { business_code_of_owner }),
+      ...(business_code_if_vendor && { business_code_if_vendor }),
+      ...(branch_name && { branch_name }),
+      ...(accepted !== undefined && { accepted }),
+      ...(rejection_reason && { rejection_reason }),
+      ...businessNameUpdate, // Add the business name update if applicable
+    };
 
-  const { data, error } = await supabase
-    .from('products')
-    .update(updateData)
-    .eq('product_id', productId)
-    .select()
-    .single();
+    // If accepting/rejecting, add timestamp
+    if (updates.accepted !== undefined) {
+      Object.assign(updateData, {
+        date_of_acception_or_rejection: new Date().toISOString()
+      });
+    }
 
-  if (error) {
-    console.error('Error updating product:', error);
-    return null;
+    const { data, error } = await supabase
+      .from('products')
+      .update(updateData)
+      .eq('product_id', productId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating product:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in updateProduct:', error);
+    throw error;
   }
-  return data;
 }
 
 export async function approveProduct(productId: number, accepted: boolean, rejectionReason?: string): Promise<boolean> {

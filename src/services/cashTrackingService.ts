@@ -289,9 +289,28 @@ export async function updateCashManually(
   amount: number,
   reason: string
 ): Promise<CashTracking> {
+  console.log('[cashTrackingService] updateCashManually called with', {
+    businessCode,
+    branchName,
+    cashierName,
+    amount,
+    reason
+  });
+
+  if (!businessCode) {
+    console.error('[cashTrackingService] Missing business code');
+    throw new Error('Business code is required for cash tracking');
+  }
+
+  if (!branchName) {
+    console.error('[cashTrackingService] Missing branch name');
+    throw new Error('Branch name is required for cash tracking');
+  }
+
   try {
     // Get latest cash tracking to get current cash total
-    const { data: latestCashTracking } = await supabase
+    console.log('[cashTrackingService] Fetching latest cash tracking for', { businessCode, branchName });
+    const { data: latestCashTracking, error: fetchError } = await supabase
       .from('cash_tracking')
       .select('new_total_cash')
       .eq('business_code', businessCode)
@@ -300,21 +319,36 @@ export async function updateCashManually(
       .limit(1)
       .single();
 
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      // Log and throw if it's not a "no rows returned" error
+      console.error('[cashTrackingService] Error fetching latest cash tracking:', fetchError);
+      throw fetchError;
+    }
+
     const previousTotal = latestCashTracking?.new_total_cash || 0;
     const newTotal = previousTotal + amount;
+    
+    console.log('[cashTrackingService] Cash calculation', {
+      previousTotal,
+      amount,
+      newTotal
+    });
 
     // Create cash tracking record without creating a transaction
+    const trackingId = `MANUAL${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+    console.log('[cashTrackingService] Creating new cash tracking record with ID:', trackingId);
+    
     const { data: record, error } = await supabase
       .from('cash_tracking')
       .insert([{
-        tracking_id: `MANUAL${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+        tracking_id: trackingId,
         business_code: businessCode,
         business_branch_name: branchName,
         cashier_name: cashierName,
         previous_total_cash: previousTotal,
         new_total_cash: newTotal,
-        cash_additions: amount,
-        cash_removals: 0,
+        cash_additions: amount > 0 ? amount : 0,
+        cash_removals: amount < 0 ? Math.abs(amount) : 0,
         cash_change_reason: reason,
         total_returns: 0,
         transaction_date: new Date().toISOString().split('T')[0]
@@ -323,13 +357,14 @@ export async function updateCashManually(
       .single();
 
     if (error) {
-      console.error('Error creating cash tracking record:', error);
+      console.error('[cashTrackingService] Error creating cash tracking record:', error);
       throw error;
     }
 
+    console.log('[cashTrackingService] Cash tracking record created successfully:', record);
     return record;
   } catch (error) {
-    console.error('Error updating cash manually:', error);
+    console.error('[cashTrackingService] Error updating cash manually:', error);
     throw error;
   }
 }

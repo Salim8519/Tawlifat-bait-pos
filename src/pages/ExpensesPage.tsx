@@ -14,19 +14,56 @@ import type { Transaction } from '../types/transaction';
 export default function ExpensesPage() {
   const { language } = useLanguageStore();
   const { user } = useAuthStore();
-  const { getCurrentBranch, branches, businessCode } = useBusinessStore();
+  const { getCurrentBranch, branches, businessCode: businessStoreCode, setBusinessCode } = useBusinessStore();
+  
+  // Get business code from auth store as fallback
+  const authBusinessCode = useAuthStore(state => state.businessCode);
+  
+  // Use business code from either store, with auth store as fallback
+  const businessCode = businessStoreCode || authBusinessCode || user?.businessCode;
   
   // Initialize with the first active branch or the cashier's assigned branch
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  console.log('[ExpensesPage] Initial render', { 
+    user: user?.name, 
+    role: user?.role, 
+    businessStoreCode,
+    authBusinessCode,
+    userBusinessCode: user?.businessCode,
+    effectiveBusinessCode: businessCode,
+    branchesCount: branches.length,
+    activeBranches: branches.filter(b => b.is_active).length
+  });
+
+  // Ensure business code is set in business store if available elsewhere
   useEffect(() => {
+    if (!businessStoreCode && businessCode) {
+      console.log('[ExpensesPage] Setting business code in store:', businessCode);
+      setBusinessCode(businessCode);
+    }
+  }, [businessStoreCode, businessCode, setBusinessCode]);
+
+  useEffect(() => {
+    console.log('[ExpensesPage] useEffect triggered', { 
+      userRole: user?.role, 
+      branchesCount: branches.length 
+    });
+    
     if (user?.role === 'cashier') {
       const currentBranch = getCurrentBranch();
+      console.log('[ExpensesPage] Cashier branch assignment', { 
+        currentBranch: currentBranch?.branch_name 
+      });
       setSelectedBranch(currentBranch?.branch_name || null);
     } else {
       // For non-cashiers, select the first active branch
       const activeBranches = branches.filter(branch => branch.is_active);
+      console.log('[ExpensesPage] Active branches for non-cashier', { 
+        activeBranchesCount: activeBranches.length,
+        firstActiveBranch: activeBranches[0]?.branch_name 
+      });
       if (activeBranches.length > 0) {
         setSelectedBranch(activeBranches[0].branch_name);
       }
@@ -34,20 +71,47 @@ export default function ExpensesPage() {
   }, [user?.role, branches]);
 
   const handleBranchChange = (branch: string) => {
+    console.log('[ExpensesPage] Branch changed', { branch });
     setSelectedBranch(branch);
   };
 
   const handleExpenseSubmit = async (formData: ExpenseFormData) => {
-    if (!selectedBranch || !businessCode || !user?.name) return;
+    console.log('[ExpensesPage] Form submitted', { 
+      formData, 
+      selectedBranch, 
+      businessCode,
+      userName: user?.name 
+    });
+    
+    if (!selectedBranch || !businessCode || !user?.name) {
+      console.error('[ExpensesPage] Missing required data', { 
+        selectedBranch, 
+        businessCode, 
+        userName: user?.name 
+      });
+      setToast({
+        type: 'error',
+        message: language === 'ar' ? 'بيانات مفقودة مطلوبة' : 'Missing required data'
+      });
+      return;
+    }
 
     try {
       // Get the proper business name from the owner's profile
+      console.log('[ExpensesPage] Getting business name for', { businessCode });
       const businessName = await getBusinessName(businessCode);
+      console.log('[ExpensesPage] Retrieved business name', { businessName });
 
       // Calculate amount based on transaction type
       const amount = formData.transaction_type === 'withdraw' 
         ? -Math.abs(Number(formData.amount)) // Make withdraw amounts negative
         : Math.abs(Number(formData.amount));
+      
+      console.log('[ExpensesPage] Calculated amount', { 
+        originalAmount: formData.amount,
+        calculatedAmount: amount,
+        transactionType: formData.transaction_type 
+      });
 
       const transaction: Omit<Transaction, 'transaction_id'> = {
         business_code: businessCode,
@@ -65,11 +129,14 @@ export default function ExpensesPage() {
         }
       };
 
+      console.log('[ExpensesPage] Creating transaction', transaction);
       // Create the transaction
       await createTransaction(transaction);
+      console.log('[ExpensesPage] Transaction created successfully');
 
       // If payment method is cash, update cash tracking
       if (formData.payment_method === 'cash') {
+        console.log('[ExpensesPage] Updating cash tracking for cash payment');
         await updateCashManually(
           businessCode,
           selectedBranch,
@@ -77,6 +144,7 @@ export default function ExpensesPage() {
           amount,
           formData.transaction_reason || (formData.transaction_type === 'deposit' ? 'Cash Addition' : 'Cash Removal')
         );
+        console.log('[ExpensesPage] Cash tracking updated successfully');
       }
 
       setToast({
@@ -84,13 +152,15 @@ export default function ExpensesPage() {
         message: language === 'ar' ? 'تم حفظ المعاملة بنجاح' : 'Transaction saved successfully'
       });
     } catch (error) {
-      console.error('Error creating transaction:', error);
+      console.error('[ExpensesPage] Error creating transaction:', error);
       setToast({
         type: 'error',
         message: language === 'ar' ? 'حدث خطأ أثناء حفظ المعاملة' : 'Error saving transaction'
       });
     }
   };
+
+  console.log('[ExpensesPage] Rendering with selectedBranch:', selectedBranch);
 
   return (
     <div className="p-6">

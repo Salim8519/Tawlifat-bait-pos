@@ -67,6 +67,11 @@ export const vendorDashboardTranslations = {
     topBranches: 'أفضل الفروع',
     transactionTypeDistribution: 'توزيع أنواع المعاملات',
     noTransactionsInPeriod: 'لا توجد معاملات في هذه الفترة',
+    monthlyProfitByBusiness: 'الأرباح الشهرية حسب المتجر',
+    monthlyProfitByBranch: 'الأرباح الشهرية حسب الفرع',
+    monthlyProfitDescription: 'هذا الجدول يوضح الأرباح الشهرية لكل متجر وفرع',
+    month: 'الشهر',
+    salesAnalytics: 'تحليلات المبيعات',
     
     // Vendor Rentals
     myRentals: 'إيجاراتي',
@@ -161,6 +166,11 @@ export const vendorDashboardTranslations = {
     topBranches: 'Top Branches',
     transactionTypeDistribution: 'Transaction Type Distribution',
     noTransactionsInPeriod: 'No transactions in this period',
+    monthlyProfitByBusiness: 'Monthly Profit by Business',
+    monthlyProfitByBranch: 'Monthly Profit by Branch',
+    monthlyProfitDescription: 'This table shows the monthly profit for each business and branch',
+    month: 'Month',
+    salesAnalytics: 'Sales Analytics',
     
     // Vendor Rentals
     myRentals: 'My Rentals',

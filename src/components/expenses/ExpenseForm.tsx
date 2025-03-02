@@ -18,7 +18,13 @@ export function ExpenseForm({ onSubmit, selectedBranch }: ExpenseFormProps) {
     details: {}
   });
 
+  console.log('[ExpenseForm] Initialized with', { 
+    selectedBranch, 
+    initialFormData: formData 
+  });
+
   React.useEffect(() => {
+    console.log('[ExpenseForm] Branch changed in props', { selectedBranch });
     setFormData(prev => ({
       ...prev,
       branch_name: selectedBranch || ''
@@ -27,7 +33,17 @@ export function ExpenseForm({ onSubmit, selectedBranch }: ExpenseFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedBranch) return;
+    console.log('[ExpenseForm] Form submitted', { 
+      formData, 
+      selectedBranch, 
+      isValid: !!selectedBranch 
+    });
+    
+    if (!selectedBranch) {
+      console.error('[ExpenseForm] Cannot submit - no branch selected');
+      return;
+    }
+    
     onSubmit(formData);
   };
 
@@ -35,11 +51,19 @@ export function ExpenseForm({ onSubmit, selectedBranch }: ExpenseFormProps) {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
+    console.log('[ExpenseForm] Input changed', { name, value });
+    
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
   };
+
+  console.log('[ExpenseForm] Rendering with', { 
+    formData, 
+    selectedBranch, 
+    isSubmitDisabled: !selectedBranch 
+  });
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-lg shadow">

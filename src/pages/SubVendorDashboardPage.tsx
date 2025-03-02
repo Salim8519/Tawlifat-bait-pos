@@ -9,6 +9,7 @@ import { VendorAssignmentBoxes } from '../components/vendor/VendorAssignmentBoxe
 import { VendorDashboardCharts } from '../components/vendor/VendorDashboardCharts';
 import { VendorTransactionFilters } from '../components/vendor/VendorTransactionFilters';
 import { VendorTransactionStats } from '../components/vendor/VendorTransactionStats';
+import { VendorMonthlyProfitTable } from '../components/vendor/VendorMonthlyProfitTable';
 import type { VendorAssignment } from '../types/vendor';
 
 export function SubVendorDashboardPage() {
@@ -201,6 +202,11 @@ export function SubVendorDashboardPage() {
             dateRange={dateRange} 
           />
         )}
+      </div>
+
+      {/* Monthly Profit Table - Independent of other filters */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <VendorMonthlyProfitTable />
       </div>
     </div>
   );

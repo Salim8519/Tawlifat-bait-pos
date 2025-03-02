@@ -112,6 +112,66 @@ This method is not recommended because:
 - No built-in fallback value
 - Duplicates logic that's already in businessService
 
+## Best Practices for Business Name Retrieval
+
+### Using the Business Service
+
+Always use the dedicated functions in the business service to retrieve business names:
+
+```typescript
+import { getBusinessName, ensureBusinessName } from '../services/businessService';
+
+// Basic retrieval - returns the business name or 'Unknown Business'
+const businessName = await getBusinessName(businessCode);
+
+// Enhanced retrieval with fallback - ensures a valid business name is always returned
+const safeName = await ensureBusinessName(businessCode, currentBusinessName);
+```
+
+### Business Name Lookup Process
+
+The `getBusinessName` function follows a multi-step lookup process:
+
+1. First tries to find the business name from an owner profile
+2. If not found, looks for any user with the same business code
+3. If still not found, checks the business_settings table
+4. If all lookups fail, returns a default value
+
+This approach ensures that the business name can be retrieved regardless of the current user's role (owner, manager, cashier, etc.).
+
+### Benefits of Using ensureBusinessName
+
+The `ensureBusinessName` function provides several advantages:
+
+1. **Graceful Fallbacks**: If the business name can't be found in the database, it provides a fallback using the business code.
+2. **Efficiency**: Uses an existing name if provided, avoiding unnecessary database queries.
+3. **Error Handling**: Catches and logs errors without throwing exceptions that could interrupt the flow.
+4. **Consistency**: Ensures a consistent approach to business name retrieval across the application.
+
+### Implementation
+
+```typescript
+// Example usage in a service
+import { ensureBusinessName } from '../services/businessService';
+
+export async function processBusinessTransaction(businessCode: string, businessName?: string) {
+  // Get a guaranteed valid business name
+  const validBusinessName = await ensureBusinessName(businessCode, businessName);
+  
+  // Now use the valid business name for the transaction
+  // ...
+}
+```
+
+### When to Use Which Function
+
+- Use `getBusinessName` when you need the exact business name and can handle the 'Unknown Business' case.
+- Use `ensureBusinessName` when you need a guaranteed valid string for a business name in operations like:
+  - Creating transaction records
+  - Generating receipts
+  - Updating vendor transactions
+  - Any operation where a missing business name would cause an error
+
 ## Vendor Information
 
 ### 1. Vendor Types
@@ -254,4 +314,3 @@ const { data: vendorAssignments } = await supabase
    - Always query using both business code and role
    - Validate data at application level
    - Use transactions for critical operations
-

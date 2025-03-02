@@ -479,10 +479,14 @@ export function POSPage() {
 
       // Update vendor transactions for vendor products
       try {
+        // Use the ensureBusinessName function to get a valid business name
+        const { ensureBusinessName } = await import('../services/businessService');
+        const businessName = await ensureBusinessName(user!.businessCode, user!.businessName);
+        
         await updateVendorTransactionsFromSale(
           cart,
           user!.businessCode,
-          user!.businessName || '',
+          businessName,
           selectedBranch.branch_name,
           settings.vendor_commission_enabled,
           settings.default_commission_rate,

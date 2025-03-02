@@ -91,12 +91,15 @@ const renderLegend = (props: any) => {
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
+    const data = payload[0].payload;
     return (
       <div className="bg-white p-2 border border-gray-200 rounded shadow-sm">
         <p className="text-sm font-medium">{payload[0].name}</p>
-        <p className="text-sm text-gray-600">{formatCurrency(payload[0].value)}</p>
         <p className="text-sm text-gray-600">
-          {((payload[0].value / payload[0].payload.total) * 100).toFixed(2)}%
+          {data.isNegative ? '- ' : ''}{formatCurrency(payload[0].value)}
+        </p>
+        <p className="text-sm text-gray-600">
+          {((payload[0].value / data.total) * 100).toFixed(2)}%
         </p>
       </div>
     );
@@ -122,11 +125,12 @@ export function QuickInsights({ data, selectedBranch, branchData, transactionTre
 
   // Transform transaction types data for pie chart
   const transactionTypesData = Object.entries(data.byTransactionType)
-    .filter(([_, value]) => value.amount > 0)
+    .filter(([_, value]) => Math.abs(value.amount) > 0)
     .map(([key, value]) => ({
       name: t[key as keyof typeof t] || key,
-      value: Number(value.amount.toFixed(2)),
-      total: data.totalAmount
+      value: Number(Math.abs(value.amount).toFixed(2)),
+      total: data.totalAmount > 0 ? data.totalAmount : 1,
+      isNegative: value.amount < 0
     }));
 
   return (
@@ -267,7 +271,7 @@ export function QuickInsights({ data, selectedBranch, branchData, transactionTre
                           </span>
                         </td>
                         <td className="text-end py-2 px-4 text-gray-900 font-medium">
-                          {formatCurrency(entry.value)}
+                          {entry.isNegative ? '- ' : ''}{formatCurrency(entry.value)}
                         </td>
                         <td className="text-end py-2 px-4 text-gray-600">
                           {((entry.value / entry.total) * 100).toFixed(1)}%
