@@ -30,7 +30,7 @@ const BarcodeSettingsV2Page: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [previewData, setPreviewData] = useState<BarcodeDataV2>({
-    barcode: '12345678901',
+    barcode: '123456789012', // 12 digits for UPC compatibility
     productName: language === 'ar' ? 'اسم المنتج' : 'Sample Product',
     price: 10.500,
     businessName: language === 'ar' ? 'اسم المؤسسة' : 'Tawliat Bait',
@@ -44,7 +44,32 @@ const BarcodeSettingsV2Page: React.FC = () => {
 
   // Generate preview HTML
   const generatePreview = () => {
-    const html = getPreview(previewData);
+    // Ensure barcode is valid for the selected format
+    let updatedPreviewData = { ...previewData };
+    
+    if (settings.barcodeFormat === 'UPC' && !/^\d{12}$/.test(previewData.barcode)) {
+      // UPC requires exactly 12 digits
+      let validatedBarcode = previewData.barcode.replace(/\D/g, ''); // Remove non-digits
+      if (validatedBarcode.length < 12) {
+        validatedBarcode = validatedBarcode.padStart(12, '0');
+      } else if (validatedBarcode.length > 12) {
+        validatedBarcode = validatedBarcode.substring(0, 12);
+      }
+      updatedPreviewData.barcode = validatedBarcode;
+      setPreviewData(updatedPreviewData);
+    } else if (settings.barcodeFormat === 'EAN13' && !/^\d{13}$/.test(previewData.barcode)) {
+      // EAN13 requires exactly 13 digits
+      let validatedBarcode = previewData.barcode.replace(/\D/g, ''); // Remove non-digits
+      if (validatedBarcode.length < 13) {
+        validatedBarcode = validatedBarcode.padStart(13, '0');
+      } else if (validatedBarcode.length > 13) {
+        validatedBarcode = validatedBarcode.substring(0, 13);
+      }
+      updatedPreviewData.barcode = validatedBarcode;
+      setPreviewData(updatedPreviewData);
+    }
+    
+    const html = getPreview(updatedPreviewData);
     setPreviewHtml(html);
   };
 
@@ -68,6 +93,34 @@ const BarcodeSettingsV2Page: React.FC = () => {
   // Handle settings change
   const handleSettingsChange = (changedSettings: Partial<BarcodeSettingsV2>) => {
     updateSettings(changedSettings);
+    
+    // If barcode format changed, update the preview data to ensure valid format
+    if (changedSettings.barcodeFormat) {
+      let updatedPreviewData = { ...previewData };
+      
+      if (changedSettings.barcodeFormat === 'UPC') {
+        // UPC requires exactly 12 digits
+        let validatedBarcode = previewData.barcode.replace(/\D/g, ''); // Remove non-digits
+        if (validatedBarcode.length < 12) {
+          validatedBarcode = validatedBarcode.padStart(12, '0');
+        } else if (validatedBarcode.length > 12) {
+          validatedBarcode = validatedBarcode.substring(0, 12);
+        }
+        updatedPreviewData.barcode = validatedBarcode;
+        setPreviewData(updatedPreviewData);
+      } else if (changedSettings.barcodeFormat === 'EAN13') {
+        // EAN13 requires exactly 13 digits
+        let validatedBarcode = previewData.barcode.replace(/\D/g, ''); // Remove non-digits
+        if (validatedBarcode.length < 13) {
+          validatedBarcode = validatedBarcode.padStart(13, '0');
+        } else if (validatedBarcode.length > 13) {
+          validatedBarcode = validatedBarcode.substring(0, 13);
+        }
+        updatedPreviewData.barcode = validatedBarcode;
+        setPreviewData(updatedPreviewData);
+      }
+    }
+    
     generatePreview();
   };
 

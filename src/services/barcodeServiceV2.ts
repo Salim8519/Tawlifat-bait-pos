@@ -278,8 +278,42 @@ function generateBarcodeHTML(
     priceFontWeight,
     barcodeFontWeight,
     datesFontWeight,
+    barcodeFormat,
     // other settings...
   } = settings;
+
+  // Validate barcode format
+  let validatedBarcode = barcode;
+  let formatError = false;
+  let errorMessage = '';
+
+  // Format-specific validation
+  if (barcodeFormat === 'UPC') {
+    // UPC requires exactly 12 digits
+    const upcRegex = /^\d{12}$/;
+    if (!upcRegex.test(barcode)) {
+      // If not valid, pad with zeros or truncate to make it 12 digits
+      validatedBarcode = barcode.replace(/\D/g, ''); // Remove non-digits
+      if (validatedBarcode.length < 12) {
+        validatedBarcode = validatedBarcode.padStart(12, '0');
+      } else if (validatedBarcode.length > 12) {
+        validatedBarcode = validatedBarcode.substring(0, 12);
+      }
+      console.warn(`UPC format requires exactly 12 digits. Original: ${barcode}, Modified: ${validatedBarcode}`);
+    }
+  } else if (barcodeFormat === 'EAN13') {
+    // EAN13 requires exactly 13 digits
+    const ean13Regex = /^\d{13}$/;
+    if (!ean13Regex.test(barcode)) {
+      validatedBarcode = barcode.replace(/\D/g, ''); // Remove non-digits
+      if (validatedBarcode.length < 13) {
+        validatedBarcode = validatedBarcode.padStart(13, '0');
+      } else if (validatedBarcode.length > 13) {
+        validatedBarcode = validatedBarcode.substring(0, 13);
+      }
+      console.warn(`EAN13 format requires exactly 13 digits. Original: ${barcode}, Modified: ${validatedBarcode}`);
+    }
+  }
 
   // Calculate dimensions and scaling
   const contentWidth = `${labelWidth}mm`;
@@ -413,6 +447,23 @@ function generateBarcodeHTML(
     .expiry-date {
       color: ${darkMode ? '#ff6666' : '#ff0000'};
     }
+    
+    .barcode-error {
+      color: red;
+      text-align: center;
+      margin: 10px 0;
+      display: none;
+      font-size: 12px;
+    }
+    .barcode-fallback {
+      border: 1px dashed #ccc;
+      padding: 10px;
+      text-align: center;
+      margin: 10px 0;
+      display: none;
+      font-size: 14px;
+      background-color: #f8f8f8;
+    }
   `;
 
   // Prepare dates content - only create this once
@@ -438,15 +489,27 @@ function generateBarcodeHTML(
   let scriptContent = `
     <script>
       window.onload = function() {
-        JsBarcode("#barcode", "${barcode}", {
-          format: "${settings.barcodeFormat}",
-          width: ${settings.barcodeLineWidth},
-          height: ${settings.barcodeHeight},
-          displayValue: false, // Always hide the built-in text
-          margin: 0,
-          background: "${darkMode ? 'black' : 'white'}",
-          lineColor: "${darkMode ? 'white' : 'black'}"
-        });
+        try {
+          JsBarcode("#barcode", "${validatedBarcode}", {
+            format: "${barcodeFormat}",
+            width: ${settings.barcodeLineWidth},
+            height: ${settings.barcodeHeight},
+            displayValue: false, // Always hide the built-in text
+            margin: 0,
+            background: "${darkMode ? 'black' : 'white'}",
+            lineColor: "${darkMode ? 'white' : 'black'}"
+          });
+          document.getElementById('barcode-error').style.display = 'none';
+        } catch (error) {
+          console.error('Error generating barcode:', error);
+          document.getElementById('barcode-error').style.display = 'block';
+          document.getElementById('barcode-error').textContent = 'Error: ' + error.message;
+          
+          // For preview, show a fallback message
+          if (!autoPrint) {
+            document.getElementById('barcode-fallback').style.display = 'block';
+          }
+        }
   `;
 
   // Add auto-print functionality if requested
@@ -499,7 +562,16 @@ function generateBarcodeHTML(
         
         <div class="barcode-section">
           <svg id="barcode"></svg>
-          ${settings.displayBarcodeText ? `<div class="barcode-text">${barcode}</div>` : ''}
+          <div id="barcode-error" class="barcode-error"></div>
+          <div id="barcode-fallback" class="barcode-fallback">
+            ${barcodeFormat === 'UPC' ? 
+              `UPC format requires exactly 12 digits (current: ${barcode.length} digits)` : 
+              barcodeFormat === 'EAN13' ? 
+              `EAN13 format requires exactly 13 digits (current: ${barcode.length} digits)` :
+              `Invalid barcode format`
+            }
+          </div>
+          ${settings.displayBarcodeText ? `<div class="barcode-text">${validatedBarcode}</div>` : ''}
         </div>
         
         ${showPrice ? `
@@ -525,11 +597,25 @@ export async function printBarcodeV2(
   settings: Partial<BarcodeSettingsV2> = {}
 ): Promise<boolean> {
   try {
+    // Log barcode data for debugging
+    console.log('Printing barcode with data:', {
+      barcode: data.barcode,
+      format: settings.barcodeFormat || getCachedBarcodeSettingsV2().barcodeFormat
+    });
+    
     // Merge with cached settings
     const mergedSettings = {
       ...getCachedBarcodeSettingsV2(),
       ...settings
     };
+    
+    // Validate barcode format requirements
+    const format = mergedSettings.barcodeFormat;
+    if (format === 'UPC' && !/^\d{12}$/.test(data.barcode)) {
+      console.warn(`UPC format requires exactly 12 digits. Current value: ${data.barcode}`);
+    } else if (format === 'EAN13' && !/^\d{13}$/.test(data.barcode)) {
+      console.warn(`EAN13 format requires exactly 13 digits. Current value: ${data.barcode}`);
+    }
     
     // Generate HTML content with auto-print enabled
     const htmlContent = generateBarcodeHTML(data, mergedSettings, true);

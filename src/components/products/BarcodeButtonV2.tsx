@@ -52,9 +52,15 @@ export function BarcodeButtonV2({ product, className = '', userProfile }: Props)
       // Calculate price with commission
       const finalPrice = calculatePriceWithCommission(product);
 
+      // Ensure barcode is valid
+      let barcodeValue = product.barcode || product.product_id.toString();
+      
+      // Log barcode format and value for debugging
+      console.log(`Printing barcode with format: ${settings.barcodeFormat}, value: ${barcodeValue}`);
+
       // Create barcode data for V2 service
       const barcodeData: BarcodeDataV2 = {
-        barcode: product.barcode || product.product_id.toString(),
+        barcode: barcodeValue,
         productName: product.product_name,
         price: finalPrice,
         businessName: currentUserBusinessName,
