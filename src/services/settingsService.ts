@@ -50,19 +50,18 @@ export async function updateBusinessSettings(
  * Create initial business settings
  */
 export async function createBusinessSettings(businessCode: string): Promise<BusinessSettings> {
-  const defaultSettings: BusinessSettings = {
+  const defaultSettings = {
     business_code_: businessCode,
-    default_commission_rate: 10,
+    default_commission_rate: 0,
     tax_rate: 0,
-    logo_url: null,
+    tax_enabled: false,
     receipt_header: '',
     receipt_footer: '',
-    allow_negative_stock: false,
-    enable_loyalty_system: false,
-    loyalty_points_rate: 1,
-    loyalty_redemption_rate: 1,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
+    url_logo_of_business: null,
+    loyalty_system_enabled: false,
+    vendor_commission_enabled: false,
+    minimum_commission_amount: 0,
+    extra_tax_monthly_on_vendors: 0,
   };
 
   try {

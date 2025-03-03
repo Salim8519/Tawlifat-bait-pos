@@ -26,7 +26,31 @@ export function useBusinessSettings() {
         // If no settings exist, create default settings
         if (!data) {
           console.log('Creating default settings for business:', user.businessCode);
-          data = await createBusinessSettings(user.businessCode);
+          try {
+            data = await createBusinessSettings(user.businessCode);
+            if (!data) {
+              throw new Error('Failed to create default settings');
+            }
+          } catch (createError) {
+            console.error('Error creating default settings:', createError);
+            // Provide fallback default settings to prevent UI errors
+            data = {
+              business_code_: user.businessCode,
+              setting_id: 'temp-' + Date.now(),
+              default_commission_rate: 10,
+              tax_rate: 0,
+              tax_enabled: false,
+              receipt_header: '',
+              receipt_footer: '',
+              url_logo_of_business: null,
+              loyalty_system_enabled: false,
+              vendor_commission_enabled: false,
+              minimum_commission_amount: 0,
+              extra_tax_monthly_on_vendors: 0,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+          }
         }
         
         setSettings(data);
