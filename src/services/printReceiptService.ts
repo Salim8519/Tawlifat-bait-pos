@@ -102,6 +102,7 @@ export async function printReceipt(
             background-color: white;
             color: black;
             text-align: center;
+            font-weight: bold;
           }
           
           .receipt {
@@ -123,6 +124,7 @@ export async function printReceipt(
             font-size: ${headerFontSize}px;
             white-space: pre-wrap;
             word-wrap: break-word;
+            font-weight: bold;
           }
           
           .business-name {
@@ -164,18 +166,21 @@ export async function printReceipt(
             align-items: center;
             margin: 0.5mm 0;
             font-size: ${fontSize - 1}px;
+            font-weight: bold;
           }
           
           .item-notes {
             font-size: ${fontSize - 2}px;
-            color: #666;
+            color: #000000;
             padding-right: 1mm;
             word-wrap: break-word;
+            font-weight: bold;
           }
           
           .item-quantity {
-            color: #666;
+            color: #000000;
             white-space: nowrap;
+            font-weight: bold;
           }
           
           .totals {
@@ -197,6 +202,7 @@ export async function printReceipt(
             align-items: center;
             margin: 0.5mm 0;
             font-size: ${fontSize - 1}px;
+            font-weight: bold;
           }
           
           .text-left { text-align: left; }
@@ -205,7 +211,8 @@ export async function printReceipt(
           
           .small {
             font-size: ${fontSize - 2}px;
-            color: #666;
+            color: #000000;
+            font-weight: bold;
           }
           
           .qr-code {

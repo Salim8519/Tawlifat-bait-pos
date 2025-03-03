@@ -196,6 +196,7 @@ function generateResponsiveCSS(
       background-color: white;
       color: black;
       text-align: center;
+      font-weight: bold;
     }
     
     .receipt {
@@ -217,6 +218,7 @@ function generateResponsiveCSS(
       font-size: ${printerSize.fontSize - 1}px;
       white-space: pre-wrap;
       word-wrap: break-word;
+      font-weight: bold;
     }
     
     .business-name {
@@ -258,18 +260,21 @@ function generateResponsiveCSS(
       align-items: center;
       margin: 0.5mm 0;
       font-size: ${printerSize.fontSize - 1}px;
+      font-weight: bold;
     }
     
     .item-notes {
       font-size: ${Math.max(printerSize.fontSize - 2, 7)}px;
-      color: #666;
+      color: #000000;
       padding-right: 1mm;
       word-wrap: break-word;
+      font-weight: bold;
     }
     
     .item-quantity {
-      color: #666;
+      color: #000000;
       white-space: nowrap;
+      font-weight: bold;
     }
     
     .totals {
@@ -291,6 +296,7 @@ function generateResponsiveCSS(
       align-items: center;
       margin: 0.5mm 0;
       font-size: ${printerSize.fontSize - 1}px;
+      font-weight: bold;
     }
     
     .text-left { text-align: left; }
@@ -299,7 +305,8 @@ function generateResponsiveCSS(
     
     .small {
       font-size: ${Math.max(printerSize.fontSize - 2, 7)}px;
-      color: #666;
+      color: #000000;
+      font-weight: bold;
     }
   `;
 }
