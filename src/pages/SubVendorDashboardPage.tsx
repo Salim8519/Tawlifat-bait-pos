@@ -119,6 +119,11 @@ export function SubVendorDashboardPage() {
         <h1 className="text-2xl font-bold">{t.dashboard}</h1>
       </div>
 
+      {/* Monthly Profit Table - Now at the top of the page */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <VendorMonthlyProfitTable />
+      </div>
+
       {/* Vendor Assignments */}
       <div className="bg-white rounded-lg shadow">
         <div className="p-6">
@@ -202,11 +207,6 @@ export function SubVendorDashboardPage() {
             dateRange={dateRange} 
           />
         )}
-      </div>
-
-      {/* Monthly Profit Table - Independent of other filters */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <VendorMonthlyProfitTable />
       </div>
     </div>
   );
