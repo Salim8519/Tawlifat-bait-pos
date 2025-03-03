@@ -78,6 +78,7 @@ export const barcodeSettingsV2Translations = {
     businessNameFontSize: 'حجم خط اسم المؤسسة (نقطة)',
     productNameFontSize: 'حجم خط اسم المنتج (نقطة)',
     priceFontSize: 'حجم خط السعر (نقطة)',
+    dateFontSize: 'حجم خط التاريخ (نقطة)',
     rtl: 'من اليمين إلى اليسار',
     darkMode: 'الوضع الداكن',
     
@@ -87,6 +88,10 @@ export const barcodeSettingsV2Translations = {
     priceFontWeight: 'سمك خط السعر',
     barcodeFontWeight: 'سمك خط الباركود',
     datesFontWeight: 'سمك خط التواريخ',
+    dateFontWeight: 'سمك خط التاريخ',
+    globalFontWeight: 'سمك النص العام',
+    
+    // Font weight options
     normal: 'عادي',
     bold: 'غامق',
     bolder: 'أكثر غمقاً',
@@ -185,6 +190,7 @@ export const barcodeSettingsV2Translations = {
     businessNameFontSize: 'Business Name Font Size (pt)',
     productNameFontSize: 'Product Name Font Size (pt)',
     priceFontSize: 'Price Font Size (pt)',
+    dateFontSize: 'Date Font Size (pt)',
     rtl: 'RTL (Right-to-Left)',
     darkMode: 'Dark Mode',
     
@@ -194,10 +200,14 @@ export const barcodeSettingsV2Translations = {
     priceFontWeight: 'Price Font Weight',
     barcodeFontWeight: 'Barcode Text Font Weight',
     datesFontWeight: 'Dates Font Weight',
+    dateFontWeight: 'Date Font Weight',
+    globalFontWeight: 'Global Text Thickness',
+    
+    // Font weight options
     normal: 'Normal',
     bold: 'Bold',
-    bolder: 'Bolder',
-    lighter: 'Lighter',
+    bolder: 'Extra Bold',
+    lighter: 'Light',
     
     // Alignment options
     left: 'Left',

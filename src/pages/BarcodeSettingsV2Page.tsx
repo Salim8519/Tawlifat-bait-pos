@@ -244,8 +244,8 @@ const BarcodeSettingsV2Page: React.FC = () => {
                   <Button 
                     type="primary" 
                     icon={<PrinterOutlined />} 
-                    loading={isPrinting}
                     onClick={printSample}
+                    loading={isPrinting}
                   >
                     {t.printSample}
                   </Button>
@@ -267,54 +267,56 @@ const BarcodeSettingsV2Page: React.FC = () => {
                   />
                 </div>
                 
+                <h3 className="preview-data-title">{t.testData}</h3>
                 <div className="preview-data">
-                  <h3>{t.testData}</h3>
                   <Form layout="vertical">
-                    <Form.Item label={t.barcode}>
-                      <Input 
-                        value={previewData.barcode} 
-                        onChange={e => setPreviewData({...previewData, barcode: e.target.value})}
-                      />
-                    </Form.Item>
-                    <Form.Item label={t.productName}>
-                      <Input 
-                        value={previewData.productName} 
-                        onChange={e => setPreviewData({...previewData, productName: e.target.value})}
-                      />
-                    </Form.Item>
-                    <Form.Item label={t.price}>
-                      <Input 
-                        type="number"
-                        value={previewData.price} 
-                        onChange={e => setPreviewData({...previewData, price: parseFloat(e.target.value)})}
-                      />
-                    </Form.Item>
-                    <Form.Item label={t.businessName}>
-                      <Input 
-                        value={previewData.businessName} 
-                        onChange={e => setPreviewData({...previewData, businessName: e.target.value})}
-                      />
-                    </Form.Item>
-                    <Form.Item label={t.vendorName}>
-                      <Input 
-                        value={previewData.vendorName} 
-                        onChange={e => setPreviewData({...previewData, vendorName: e.target.value})}
-                      />
-                    </Form.Item>
-                    <Form.Item label={t.expiryDate}>
-                      <Input 
-                        type="date"
-                        value={previewData.expiryDate} 
-                        onChange={e => setPreviewData({...previewData, expiryDate: e.target.value})}
-                      />
-                    </Form.Item>
-                    <Form.Item label={t.productionDate}>
-                      <Input 
-                        type="date"
-                        value={previewData.productionDate} 
-                        onChange={e => setPreviewData({...previewData, productionDate: e.target.value})}
-                      />
-                    </Form.Item>
+                    <div className="preview-form-grid">
+                      <Form.Item label={t.barcode}>
+                        <Input 
+                          value={previewData.barcode} 
+                          onChange={e => setPreviewData({...previewData, barcode: e.target.value})}
+                        />
+                      </Form.Item>
+                      <Form.Item label={t.productName}>
+                        <Input 
+                          value={previewData.productName} 
+                          onChange={e => setPreviewData({...previewData, productName: e.target.value})}
+                        />
+                      </Form.Item>
+                      <Form.Item label={t.price}>
+                        <Input 
+                          type="number"
+                          value={previewData.price} 
+                          onChange={e => setPreviewData({...previewData, price: parseFloat(e.target.value)})}
+                        />
+                      </Form.Item>
+                      <Form.Item label={t.businessName}>
+                        <Input 
+                          value={previewData.businessName} 
+                          onChange={e => setPreviewData({...previewData, businessName: e.target.value})}
+                        />
+                      </Form.Item>
+                      <Form.Item label={t.vendorName}>
+                        <Input 
+                          value={previewData.vendorName} 
+                          onChange={e => setPreviewData({...previewData, vendorName: e.target.value})}
+                        />
+                      </Form.Item>
+                      <Form.Item label={t.expiryDate}>
+                        <Input 
+                          type="date"
+                          value={previewData.expiryDate} 
+                          onChange={e => setPreviewData({...previewData, expiryDate: e.target.value})}
+                        />
+                      </Form.Item>
+                      <Form.Item label={t.productionDate}>
+                        <Input 
+                          type="date"
+                          value={previewData.productionDate} 
+                          onChange={e => setPreviewData({...previewData, productionDate: e.target.value})}
+                        />
+                      </Form.Item>
+                    </div>
                     <Button type="primary" onClick={generatePreview}>{t.updatePreview}</Button>
                   </Form>
                 </div>
@@ -324,12 +326,14 @@ const BarcodeSettingsV2Page: React.FC = () => {
           
           <TabPane tab={<span><SettingOutlined /> {t.settingsTab}</span>} key="settings">
             <div className="settings-container">
+              <h2 className="settings-section-title">{t.printerSettings}</h2>
               <Card title={t.printerTemplates} className="settings-card">
                 <div className="template-buttons">
                   {Object.keys(printerTemplates).map((template) => (
                     <Button 
                       key={template}
                       onClick={() => handleApplyTemplate(template as keyof typeof PRINTER_TEMPLATES)}
+                      type="default"
                     >
                       {template}
                     </Button>
@@ -353,24 +357,25 @@ const BarcodeSettingsV2Page: React.FC = () => {
                     {t.importSettings}
                   </Button>
                   
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleImportSettings}
-                    accept=".json"
-                    style={{ display: 'none' }}
-                  />
-                  
                   <Button 
-                    danger 
                     icon={<UndoOutlined />} 
                     onClick={handleResetSettings}
+                    danger
                   >
                     {t.resetAllSettings}
                   </Button>
+                  
+                  <input 
+                    type="file" 
+                    ref={fileInputRef}
+                    style={{ display: 'none' }}
+                    onChange={handleImportSettings}
+                    accept=".json"
+                  />
                 </div>
               </Card>
               
+              <h2 className="settings-section-title">{t.printerSettings}</h2>
               <Card title={t.printerSettings} className="settings-card">
                 <Form layout="vertical">
                   <Form.Item label={t.printerType}>
@@ -388,7 +393,7 @@ const BarcodeSettingsV2Page: React.FC = () => {
                   <Form.Item label={t.labelWidth}>
                     <Slider 
                       min={20} 
-                      max={150} 
+                      max={120} 
                       value={settings.labelWidth}
                       onChange={value => handleSettingsChange({ labelWidth: value })}
                     />
@@ -407,6 +412,7 @@ const BarcodeSettingsV2Page: React.FC = () => {
                 </Form>
               </Card>
               
+              <h2 className="settings-section-title">{t.contentSettings}</h2>
               <Card title={t.contentSettings} className="settings-card">
                 <Form layout="vertical">
                   <Form.Item label={t.showBusinessName}>
@@ -453,6 +459,7 @@ const BarcodeSettingsV2Page: React.FC = () => {
                 </Form>
               </Card>
               
+              <h2 className="settings-section-title">{t.barcodeSettings}</h2>
               <Card title={t.barcodeSettings} className="settings-card">
                 <Form layout="vertical">
                   <Form.Item label={t.barcodeFormat}>
@@ -507,6 +514,7 @@ const BarcodeSettingsV2Page: React.FC = () => {
                 </Form>
               </Card>
               
+              <h2 className="settings-section-title">{t.spacingSettings}</h2>
               <Card title={t.spacingSettings} className="settings-card">
                 <Form layout="vertical">
                   <Form.Item label={t.lineSpacing}>
@@ -544,6 +552,7 @@ const BarcodeSettingsV2Page: React.FC = () => {
                 </Form>
               </Card>
               
+              <h2 className="settings-section-title">{t.styleSettings}</h2>
               <Card title={t.styleSettings} className="settings-card">
                 <Form layout="vertical">
                   <Form.Item label={t.textAlignment}>
@@ -562,10 +571,37 @@ const BarcodeSettingsV2Page: React.FC = () => {
                       value={settings.fontFamily}
                       onChange={value => handleSettingsChange({ fontFamily: value })}
                     >
-                      <Option value="Arial, sans-serif">{t.arial}</Option>
-                      <Option value="'Times New Roman', serif">{t.timesNewRoman}</Option>
-                      <Option value="'Courier New', monospace">{t.courierNew}</Option>
-                      <Option value="'Segoe UI', sans-serif">{t.segoeUI}</Option>
+                      <Option value="Arial, sans-serif">Arial</Option>
+                      <Option value="'Times New Roman', serif">Times New Roman</Option>
+                      <Option value="'Courier New', monospace">Courier New</Option>
+                      <Option value="Verdana, sans-serif">Verdana</Option>
+                      <Option value="Tahoma, sans-serif">Tahoma</Option>
+                    </Select>
+                  </Form.Item>
+                  
+                  <Form.Item label={t.globalFontWeight}>
+                    <Select 
+                      value={settings.globalFontWeight}
+                      onChange={value => {
+                        // Apply the same font weight to all text elements
+                        handleSettingsChange({ 
+                          globalFontWeight: value,
+                          businessNameFontWeight: value,
+                          productNameFontWeight: value,
+                          priceFontWeight: value,
+                          barcodeFontWeight: value,
+                          datesFontWeight: value
+                        });
+                      }}
+                    >
+                      <Option value="normal">{t.normal}</Option>
+                      <Option value="bold">{t.bold}</Option>
+                      <Option value="bolder">{t.bolder}</Option>
+                      <Option value="500">500</Option>
+                      <Option value="600">600</Option>
+                      <Option value="700">700</Option>
+                      <Option value="800">800</Option>
+                      <Option value="900">900</Option>
                     </Select>
                   </Form.Item>
                   
@@ -579,15 +615,15 @@ const BarcodeSettingsV2Page: React.FC = () => {
                     <span>{settings.businessNameFontSize} pt</span>
                   </Form.Item>
                   
-                  <Form.Item label={t.businessNameFontWeight || "Business Name Font Weight"}>
+                  <Form.Item label={t.businessNameFontWeight}>
                     <Select 
                       value={settings.businessNameFontWeight}
                       onChange={value => handleSettingsChange({ businessNameFontWeight: value })}
                     >
-                      <Option value="normal">{t.normal || "Normal"}</Option>
-                      <Option value="bold">{t.bold || "Bold"}</Option>
-                      <Option value="bolder">{t.bolder || "Bolder"}</Option>
-                      <Option value="lighter">{t.lighter || "Lighter"}</Option>
+                      <Option value="normal">{t.normal}</Option>
+                      <Option value="bold">{t.bold}</Option>
+                      <Option value="bolder">{t.bolder}</Option>
+                      <Option value="lighter">{t.lighter}</Option>
                       <Option value={500}>500</Option>
                       <Option value={600}>600</Option>
                       <Option value={700}>700</Option>
@@ -606,15 +642,15 @@ const BarcodeSettingsV2Page: React.FC = () => {
                     <span>{settings.productNameFontSize} pt</span>
                   </Form.Item>
                   
-                  <Form.Item label={t.productNameFontWeight || "Product Name Font Weight"}>
+                  <Form.Item label={t.productNameFontWeight}>
                     <Select 
                       value={settings.productNameFontWeight}
                       onChange={value => handleSettingsChange({ productNameFontWeight: value })}
                     >
-                      <Option value="normal">{t.normal || "Normal"}</Option>
-                      <Option value="bold">{t.bold || "Bold"}</Option>
-                      <Option value="bolder">{t.bolder || "Bolder"}</Option>
-                      <Option value="lighter">{t.lighter || "Lighter"}</Option>
+                      <Option value="normal">{t.normal}</Option>
+                      <Option value="bold">{t.bold}</Option>
+                      <Option value="bolder">{t.bolder}</Option>
+                      <Option value="lighter">{t.lighter}</Option>
                       <Option value={500}>500</Option>
                       <Option value={600}>600</Option>
                       <Option value={700}>700</Option>
@@ -633,15 +669,15 @@ const BarcodeSettingsV2Page: React.FC = () => {
                     <span>{settings.priceFontSize} pt</span>
                   </Form.Item>
                   
-                  <Form.Item label={t.priceFontWeight || "Price Font Weight"}>
+                  <Form.Item label={t.priceFontWeight}>
                     <Select 
                       value={settings.priceFontWeight}
                       onChange={value => handleSettingsChange({ priceFontWeight: value })}
                     >
-                      <Option value="normal">{t.normal || "Normal"}</Option>
-                      <Option value="bold">{t.bold || "Bold"}</Option>
-                      <Option value="bolder">{t.bolder || "Bolder"}</Option>
-                      <Option value="lighter">{t.lighter || "Lighter"}</Option>
+                      <Option value="normal">{t.normal}</Option>
+                      <Option value="bold">{t.bold}</Option>
+                      <Option value="bolder">{t.bolder}</Option>
+                      <Option value="lighter">{t.lighter}</Option>
                       <Option value={500}>500</Option>
                       <Option value={600}>600</Option>
                       <Option value={700}>700</Option>
@@ -650,15 +686,15 @@ const BarcodeSettingsV2Page: React.FC = () => {
                     </Select>
                   </Form.Item>
                   
-                  <Form.Item label={t.barcodeFontWeight || "Barcode Text Font Weight"}>
+                  <Form.Item label={t.barcodeFontWeight}>
                     <Select 
                       value={settings.barcodeFontWeight}
                       onChange={value => handleSettingsChange({ barcodeFontWeight: value })}
                     >
-                      <Option value="normal">{t.normal || "Normal"}</Option>
-                      <Option value="bold">{t.bold || "Bold"}</Option>
-                      <Option value="bolder">{t.bolder || "Bolder"}</Option>
-                      <Option value="lighter">{t.lighter || "Lighter"}</Option>
+                      <Option value="normal">{t.normal}</Option>
+                      <Option value="bold">{t.bold}</Option>
+                      <Option value="bolder">{t.bolder}</Option>
+                      <Option value="lighter">{t.lighter}</Option>
                       <Option value={500}>500</Option>
                       <Option value={600}>600</Option>
                       <Option value={700}>700</Option>
@@ -667,15 +703,42 @@ const BarcodeSettingsV2Page: React.FC = () => {
                     </Select>
                   </Form.Item>
                   
-                  <Form.Item label={t.datesFontWeight || "Dates Font Weight"}>
+                  <Form.Item label={t.datesFontWeight}>
                     <Select 
                       value={settings.datesFontWeight}
                       onChange={value => handleSettingsChange({ datesFontWeight: value })}
                     >
-                      <Option value="normal">{t.normal || "Normal"}</Option>
-                      <Option value="bold">{t.bold || "Bold"}</Option>
-                      <Option value="bolder">{t.bolder || "Bolder"}</Option>
-                      <Option value="lighter">{t.lighter || "Lighter"}</Option>
+                      <Option value="normal">{t.normal}</Option>
+                      <Option value="bold">{t.bold}</Option>
+                      <Option value="bolder">{t.bolder}</Option>
+                      <Option value="lighter">{t.lighter}</Option>
+                      <Option value={500}>500</Option>
+                      <Option value={600}>600</Option>
+                      <Option value={700}>700</Option>
+                      <Option value={800}>800</Option>
+                      <Option value={900}>900</Option>
+                    </Select>
+                  </Form.Item>
+                  
+                  <Form.Item label={t.dateFontSize}>
+                    <Slider 
+                      min={5} 
+                      max={12} 
+                      value={settings.dateFontSize}
+                      onChange={value => handleSettingsChange({ dateFontSize: value })}
+                    />
+                    <span>{settings.dateFontSize} pt</span>
+                  </Form.Item>
+                  
+                  <Form.Item label={t.dateFontWeight}>
+                    <Select 
+                      value={settings.dateFontWeight}
+                      onChange={value => handleSettingsChange({ dateFontWeight: value })}
+                    >
+                      <Option value="normal">{t.normal}</Option>
+                      <Option value="bold">{t.bold}</Option>
+                      <Option value="bolder">{t.bolder}</Option>
+                      <Option value="lighter">{t.lighter}</Option>
                       <Option value={500}>500</Option>
                       <Option value={600}>600</Option>
                       <Option value={700}>700</Option>

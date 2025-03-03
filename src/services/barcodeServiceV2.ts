@@ -27,9 +27,9 @@ export interface BarcodeDataV2 {
 
 export interface BarcodeSettingsV2 {
   // Printer settings
-  printerType: 'zebra' | 'dymo' | 'brother' | 'generic';
-  labelWidth: number;      // Width in mm
-  labelHeight: number;     // Height in mm
+  printerType: string;
+  labelWidth: number;
+  labelHeight: number;
   
   // Content settings
   showBusinessName: boolean;
@@ -39,38 +39,35 @@ export interface BarcodeSettingsV2 {
   showExpiryDate: boolean;
   showProductionDate: boolean;
   
-  // Font settings
-  fontFamily: string;
-  businessNameFontSize: number;
-  vendorNameFontSize: number;
-  productNameFontSize: number;
-  barcodeFontSize: number;
-  priceFontSize: number;
-  dateFontSize: number;
-  
-  // Font weight settings
-  businessNameFontWeight: 'normal' | 'bold' | 'bolder' | 'lighter' | number;
-  productNameFontWeight: 'normal' | 'bold' | 'bolder' | 'lighter' | number;
-  priceFontWeight: 'normal' | 'bold' | 'bolder' | 'lighter' | number;
-  barcodeFontWeight: 'normal' | 'bold' | 'bolder' | 'lighter' | number;
-  datesFontWeight: 'normal' | 'bold' | 'bolder' | 'lighter' | number;
+  // Barcode settings
+  barcodeFormat: string;
+  barcodeLineWidth: number;
+  barcodeHeight: number;
+  displayBarcodeText: boolean;
   
   // Spacing settings
-  lineSpacing: number;     // Space between lines
-  sectionSpacing: number;  // Space between sections
-  globalSpacing: number;   // Global spacing factor for all elements
-  
-  // Barcode settings
-  barcodeFormat: 'CODE128' | 'EAN13' | 'UPC' | 'CODE39';
-  barcodeWidth: number;    // Width in mm
-  barcodeHeight: number;   // Height in mm
-  barcodeLineWidth: number;// Line width
-  displayBarcodeText: boolean; // Show barcode text
+  lineSpacing: number;
+  sectionSpacing: number;
+  globalSpacing: number;
   
   // Style settings
-  rtl: boolean;            // Right-to-left text
-  darkMode: boolean;       // Dark mode (inverted colors)
-  textAlignment: 'left' | 'center' | 'right'; // Text alignment
+  textAlignment: string;
+  fontFamily: string;
+  globalFontWeight: string; // Global font weight setting to control all text thickness
+  businessNameFontSize: number;
+  businessNameFontWeight: string;
+  vendorNameFontSize: number;
+  productNameFontSize: number;
+  productNameFontWeight: string;
+  barcodeFontSize: number;
+  barcodeFontWeight: string;
+  priceFontSize: number;
+  priceFontWeight: string;
+  dateFontSize: number;
+  dateFontWeight: string;
+  datesFontWeight: string;
+  rtl: boolean;
+  darkMode: boolean;
 }
 
 // Predefined templates for common printer types
@@ -125,8 +122,8 @@ export const PRINTER_TEMPLATES = {
 export const DEFAULT_BARCODE_SETTINGS: BarcodeSettingsV2 = {
   // Printer settings (default to Zebra 2x1)
   printerType: 'zebra',
-  labelWidth: 50.8,        // 2 inches in mm
-  labelHeight: 25.4,       // 1 inch in mm
+  labelWidth: 50,         // Width in mm
+  labelHeight: 30,        // Height in mm
   
   // Content settings
   showBusinessName: true,
@@ -138,36 +135,35 @@ export const DEFAULT_BARCODE_SETTINGS: BarcodeSettingsV2 = {
   
   // Font settings
   fontFamily: 'Arial, sans-serif',
-  businessNameFontSize: 7,
-  vendorNameFontSize: 7,
-  productNameFontSize: 8,
-  barcodeFontSize: 8,
-  priceFontSize: 10,
-  dateFontSize: 6,
-  
-  // Font weight settings
-  businessNameFontWeight: 'normal',
+  businessNameFontSize: 10,
+  businessNameFontWeight: 'bold',
+  vendorNameFontSize: 8,
+  productNameFontSize: 9,
   productNameFontWeight: 'bold',
+  barcodeFontSize: 8,
+  barcodeFontWeight: 'bold',
+  priceFontSize: 10,
   priceFontWeight: 'bold',
-  barcodeFontWeight: 'normal',
-  datesFontWeight: 'normal',
+  dateFontSize: 7,
+  dateFontWeight: 'bold',
+  datesFontWeight: 'bold',
   
   // Spacing settings
-  lineSpacing: 1,          // Space between lines
-  sectionSpacing: 2,       // Space between sections
-  globalSpacing: 1,        // Global spacing factor for all elements
+  lineSpacing: 1,         // Space between lines
+  sectionSpacing: 2,      // Space between sections
+  globalSpacing: 1,       // Global spacing factor for all elements
   
   // Barcode settings
   barcodeFormat: 'CODE128',
-  barcodeWidth: 40,        // Width in mm
+  barcodeLineWidth: 2,     // Increased line width for better print quality
   barcodeHeight: 10,       // Height in mm
-  barcodeLineWidth: 1,     // Line width
   displayBarcodeText: true,// Show barcode text
   
   // Style settings
-  rtl: false,              // Right-to-left text
+  rtl: false,             // Right-to-left text
   darkMode: false,         // Dark mode (inverted colors)
   textAlignment: 'left',   // Text alignment
+  globalFontWeight: 'bold', // Default to bold for better print quality
 };
 
 /**
@@ -262,7 +258,7 @@ function generateBarcodeHTML(
     lineSpacing,
     sectionSpacing,
     globalSpacing,
-    barcodeWidth,
+    barcodeLineWidth,
     barcodeHeight,
     showBusinessName,
     showVendorName,
@@ -273,6 +269,7 @@ function generateBarcodeHTML(
     rtl,
     darkMode,
     textAlignment,
+    globalFontWeight,
     businessNameFontWeight,
     productNameFontWeight,
     priceFontWeight,
@@ -335,7 +332,7 @@ function generateBarcodeHTML(
     --line-spacing: ${lineSpacing}mm;
     --section-spacing: ${sectionSpacing}mm;
     --global-spacing: ${globalSpacing}mm;
-    --barcode-width: ${barcodeWidth}mm;
+    --barcode-width: ${barcodeLineWidth}mm;
     --barcode-height: ${barcodeHeight}mm;
     --content-width: ${contentWidth};
     --content-height: ${contentHeight};
@@ -343,6 +340,7 @@ function generateBarcodeHTML(
     --bg-color: ${darkMode ? 'black' : 'white'};
     --text-align: ${textAlignment};
     --direction: ${rtl ? 'rtl' : 'ltr'};
+    --global-font-weight: ${globalFontWeight};
     --business-name-font-weight: ${businessNameFontWeight};
     --product-name-font-weight: ${productNameFontWeight};
     --price-font-weight: ${priceFontWeight};
@@ -361,6 +359,15 @@ function generateBarcodeHTML(
       body {
         margin: 0;
         padding: 0;
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+      
+      /* Improve print quality */
+      * {
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
     }
     
@@ -387,11 +394,14 @@ function generateBarcodeHTML(
       font-size: var(--business-name-font-size);
       font-weight: var(--business-name-font-weight);
       margin-bottom: calc(var(--line-spacing) * var(--global-spacing));
+      letter-spacing: -0.2px; /* Tighten letter spacing for better print */
     }
     
     .vendor-name {
       font-size: var(--vendor-name-font-size);
+      font-weight: var(--global-font-weight); /* Apply global font weight */
       margin-bottom: calc(var(--line-spacing) * var(--global-spacing));
+      letter-spacing: -0.2px;
     }
     
     .product-info {
@@ -403,6 +413,7 @@ function generateBarcodeHTML(
       font-weight: var(--product-name-font-weight);
       margin-bottom: calc(var(--line-spacing) * var(--global-spacing));
       word-wrap: break-word;
+      letter-spacing: -0.2px;
     }
     
     .barcode-section {
@@ -413,6 +424,8 @@ function generateBarcodeHTML(
     .barcode-section svg {
       max-width: 100%;
       height: auto;
+      /* Make barcode lines darker and crisper */
+      shape-rendering: crispEdges;
     }
     
     .barcode-text {
@@ -420,12 +433,14 @@ function generateBarcodeHTML(
       font-weight: var(--barcode-font-weight);
       margin-top: calc(var(--line-spacing) * var(--global-spacing));
       text-align: var(--text-align); /* Apply the text alignment to the barcode text */
+      letter-spacing: -0.2px;
     }
     
     .price-section {
       font-size: var(--price-font-size);
       font-weight: var(--price-font-weight);
       margin-bottom: calc(var(--section-spacing) * var(--global-spacing));
+      letter-spacing: -0.2px;
     }
     
     .dates-section {
@@ -438,6 +453,7 @@ function generateBarcodeHTML(
       margin-top: calc(var(--line-spacing) * var(--global-spacing));
       white-space: nowrap;
       width: 100%;
+      letter-spacing: -0.2px;
     }
     
     .date-item {
@@ -445,7 +461,8 @@ function generateBarcodeHTML(
     }
     
     .expiry-date {
-      color: ${darkMode ? '#ff6666' : '#ff0000'};
+      color: ${darkMode ? '#ffffff' : '#000000'};
+      font-weight: var(--dates-font-weight);
     }
     
     .barcode-error {
@@ -497,8 +514,35 @@ function generateBarcodeHTML(
             displayValue: false, // Always hide the built-in text
             margin: 0,
             background: "${darkMode ? 'black' : 'white'}",
-            lineColor: "${darkMode ? 'white' : 'black'}"
+            lineColor: "${darkMode ? 'white' : 'black'}",
+            // Improve print quality with these settings
+            textMargin: 0,
+            fontSize: 0, // We'll use our own text display
+            valid: function(valid) {
+              if (!valid) {
+                console.error("Invalid barcode format");
+                document.getElementById('barcode-error').style.display = 'block';
+              }
+            }
           });
+          
+          // Apply additional SVG optimizations for print
+          const svgElement = document.querySelector("#barcode");
+          if (svgElement) {
+            // Make sure paths have no anti-aliasing
+            const paths = svgElement.querySelectorAll("path, rect");
+            paths.forEach(path => {
+              path.setAttribute("shape-rendering", "crispEdges");
+              // Make lines slightly thicker for better printing
+              if (path.getAttribute("fill") === "${darkMode ? 'white' : 'black'}") {
+                // This is a bar element
+                const currentWidth = parseFloat(path.getAttribute("width") || "1");
+                // Add a tiny bit of width to each bar for better printing
+                path.setAttribute("width", (currentWidth + 0.1).toString());
+              }
+            });
+          }
+          
           document.getElementById('barcode-error').style.display = 'none';
         } catch (error) {
           console.error('Error generating barcode:', error);
@@ -510,22 +554,18 @@ function generateBarcodeHTML(
             document.getElementById('barcode-fallback').style.display = 'block';
           }
         }
-  `;
-
-  // Add auto-print functionality if requested
-  if (autoPrint) {
-    scriptContent += `
-        // Auto-print after rendering
-        setTimeout(() => {
-          window.print();
+        
+        // Auto-print functionality if requested
+        if (autoPrint) {
+          // Auto-print after rendering
           setTimeout(() => {
-            window.close();
-          }, 500);
-        }, 500);
-    `;
-  }
-
-  scriptContent += `
+            window.focus(); // Focus the window to ensure print dialog appears in front
+            window.print(); // Directly open the system print dialog
+            setTimeout(() => {
+              window.close();
+            }, 500);
+          }, 300);
+        }
       };
     </script>
   `;
@@ -629,6 +669,12 @@ export async function printBarcodeV2(
     
     printWindow.document.write(htmlContent);
     printWindow.document.close();
+    
+    // Directly trigger the print dialog without waiting for user action
+    setTimeout(() => {
+      printWindow.focus(); // Focus the window to ensure print dialog appears in front
+      printWindow.print(); // Open the system print dialog immediately
+    }, 300);
     
     return true;
   } catch (error) {
