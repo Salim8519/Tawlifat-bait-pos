@@ -53,6 +53,7 @@ export function POSPage() {
   const [cashError, setCashError] = useState<string | null>(null);
   const [currentReceipt, setCurrentReceipt] = useState<any>(null);
   const [lastScanTime, setLastScanTime] = useState<number>(0);
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(Date.now());
   const selectedBranch = branches.find(b => b.branch_id === selectedBranchId);
 
   // Function to load products
@@ -60,6 +61,7 @@ export function POSPage() {
     if (!user?.businessCode || !selectedBranch) return;
     
     try {
+      console.log('Fetching products with refresh trigger:', refreshTrigger);
       const products = await getAvailableProducts(user.businessCode, selectedBranch.branch_name);
       setProducts(products);
     } catch (error) {
@@ -68,7 +70,7 @@ export function POSPage() {
     } finally {
       setLoading(false);
     }
-  }, [user?.businessCode, selectedBranch, t.errorLoadingProducts]);
+  }, [user?.businessCode, selectedBranch, t.errorLoadingProducts, refreshTrigger]);
 
   // Initial load
   useEffect(() => {
@@ -511,8 +513,8 @@ export function POSPage() {
         }
       }
 
-      // Refresh products list to show updated quantities
-      await loadProducts();
+      // Force a refresh of the products list with a new timestamp
+      setRefreshTrigger(Date.now());
 
       console.log('Sale completed successfully, resetting state...');
       

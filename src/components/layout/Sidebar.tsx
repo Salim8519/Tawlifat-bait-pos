@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useEffect, useRef } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { 
   Home, 
   ShoppingCart, 
@@ -50,18 +50,53 @@ const NavItem = ({ to, icon: Icon, children, onClick }: { to: string; icon: any;
   </NavLink>
 );
 
+// Store the scroll position in sessionStorage
+const SIDEBAR_SCROLL_POSITION_KEY = 'sidebar-scroll-position';
+
 export function Sidebar({ mobile = false, onCloseMobile }: SidebarProps) {
   const { user } = useAuthStore();
   const { language } = useLanguageStore();
+  const location = useLocation();
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // Save scroll position when navigating
+  useEffect(() => {
+    const saveScrollPosition = () => {
+      if (sidebarRef.current) {
+        sessionStorage.setItem(SIDEBAR_SCROLL_POSITION_KEY, String(sidebarRef.current.scrollTop));
+      }
+    };
+
+    // Save position before unmounting
+    window.addEventListener('beforeunload', saveScrollPosition);
+    
+    return () => {
+      saveScrollPosition();
+      window.removeEventListener('beforeunload', saveScrollPosition);
+    };
+  }, []);
+
+  // Restore scroll position on mount
+  useEffect(() => {
+    const savedPosition = sessionStorage.getItem(SIDEBAR_SCROLL_POSITION_KEY);
+    if (savedPosition && sidebarRef.current) {
+      sidebarRef.current.scrollTop = parseInt(savedPosition, 10);
+    }
+  }, []);
 
   const handleNavClick = () => {
+    // Don't reset scroll position when clicking a nav item
+    if (sidebarRef.current) {
+      sessionStorage.setItem(SIDEBAR_SCROLL_POSITION_KEY, String(sidebarRef.current.scrollTop));
+    }
+    
     if (mobile && onCloseMobile) {
       onCloseMobile();
     }
   };
 
   return (
-    <aside className="flex flex-col h-full bg-white border-l border-gray-200 overflow-y-auto">
+    <aside className="flex flex-col h-full bg-white border-l border-gray-200 overflow-y-auto" ref={sidebarRef}>
       <div className="p-4 flex-1">
         <div className="flex items-center justify-between p-2">
           <div className="flex items-center">

@@ -250,19 +250,26 @@ export function CashDrawerPage() {
           <h1 className="text-2xl font-bold">{t.cashDrawer}</h1>
           
           <div className="flex flex-col gap-4">
-            {/* Branch Selection */}
+            {/* Branch Selection - Enhanced with better visibility */}
             {(user?.role === 'owner' || user?.role === 'manager') && branches.length > 0 && (
-              <select
-                value={selectedBranch}
-                onChange={(e) => setSelectedBranch(e.target.value)}
-                className="border rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                {branches.map(branch => (
-                  <option key={branch.branch_id} value={branch.branch_name}>
-                    {branch.branch_name}
-                  </option>
-                ))}
-              </select>
+              <div className="bg-indigo-50 p-4 rounded-lg border-2 border-indigo-200 shadow-sm">
+                <div className="flex flex-col md:flex-row md:items-center gap-2">
+                  <label className="font-semibold text-indigo-700 whitespace-nowrap">
+                    {language === 'ar' ? 'اختر الفرع:' : 'Select Branch:'}
+                  </label>
+                  <select
+                    value={selectedBranch}
+                    onChange={(e) => setSelectedBranch(e.target.value)}
+                    className="flex-1 border-2 border-indigo-300 rounded-md px-3 py-2 bg-white text-indigo-800 font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    {branches.map(branch => (
+                      <option key={branch.branch_id} value={branch.branch_name}>
+                        {branch.branch_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             )}
 
             {/* Quick Filter Buttons */}
