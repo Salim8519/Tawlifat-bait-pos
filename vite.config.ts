@@ -18,9 +18,9 @@ export default defineConfig({
         clientsClaim: true
       },
       manifest: {
-        name: 'Tawliat Bait POS System',
-        short_name: 'Tawliat POS',
-        description: 'Point of Sale system for multi-branch businesses and vendor marketplaces',
+        name: 'متجري',
+        short_name: 'متجري',
+        description: 'نظام نقاط البيع لإدارة متجرك بكفاءة عالية',
         theme_color: '#4f46e5',
         background_color: '#ffffff',
         display: 'standalone',
