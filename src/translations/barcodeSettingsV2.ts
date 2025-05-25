@@ -23,8 +23,8 @@ export const barcodeSettingsV2Translations = {
     price: 'السعر',
     businessName: 'اسم المؤسسة',
     vendorName: 'اسم المورد',
-    expiryDate: 'تاريخ الانتهاء',
-    productionDate: 'تاريخ الإنتاج',
+    productionDate: 'إنتاج',
+    expiryDate: 'انتهاء',
     
     // Settings section
     printerTemplates: 'قوالب الطابعة',
@@ -54,8 +54,8 @@ export const barcodeSettingsV2Translations = {
     showVendorName: 'إظهار اسم المورد',
     showProductName: 'إظهار اسم المنتج',
     showPrice: 'إظهار السعر',
-    showExpiryDate: 'إظهار تاريخ الانتهاء',
-    showProductionDate: 'إظهار تاريخ الإنتاج',
+    showProductionDate: 'عرض تاريخ الإنتاج',
+    showExpiryDate: 'عرض تاريخ الانتهاء',
     
     // Barcode settings
     barcodeSettings: 'إعدادات الباركود',
@@ -64,6 +64,21 @@ export const barcodeSettingsV2Translations = {
     barcodeHeight: 'ارتفاع الباركود (مم)',
     lineWidth: 'عرض الخط',
     displayBarcodeText: 'عرض نص الباركود',
+    qrCode: 'رمز QR',
+    
+    // QR code settings
+    qrCodeSettings: 'إعدادات رمز QR',
+    enableQRCode: 'تمكين رمز QR',
+    qrCodeContent: 'محتوى رمز QR',
+    qrCodeContentBarcode: 'نفس الباركود',
+    qrCodeContentCustom: 'محتوى مخصص',
+    qrCodeCustomContent: 'محتوى مخصص لرمز QR',
+    qrCodeSize: 'حجم رمز QR (مم)',
+    qrCodeErrorCorrection: 'مستوى تصحيح الخطأ',
+    qrCodePosition: 'موضع رمز QR',
+    qrCodePositionLeft: 'يسار',
+    qrCodePositionRight: 'يمين',
+    splitLayoutRatio: 'نسبة تقسيم التخطيط',
     
     // Spacing settings
     spacingSettings: 'إعدادات التباعد',
@@ -107,6 +122,8 @@ export const barcodeSettingsV2Translations = {
     timesNewRoman: 'Times New Roman',
     courierNew: 'Courier New',
     segoeUI: 'Segoe UI',
+    sansSerifNormal: 'خط سانس عادي',
+    sansSerifBold: 'خط سانس غامق',
     
     // Button text
     applySettingsAndPreview: 'تطبيق الإعدادات والمعاينة'
@@ -135,8 +152,8 @@ export const barcodeSettingsV2Translations = {
     price: 'Price',
     businessName: 'Business Name',
     vendorName: 'Vendor Name',
-    expiryDate: 'Expiry Date',
-    productionDate: 'Production Date',
+    productionDate: 'Prod',
+    expiryDate: 'Exp',
     
     // Settings section
     printerTemplates: 'Printer Templates',
@@ -166,8 +183,8 @@ export const barcodeSettingsV2Translations = {
     showVendorName: 'Show Vendor Name',
     showProductName: 'Show Product Name',
     showPrice: 'Show Price',
-    showExpiryDate: 'Show Expiry Date',
     showProductionDate: 'Show Production Date',
+    showExpiryDate: 'Show Expiry Date',
     
     // Barcode settings
     barcodeSettings: 'Barcode Settings',
@@ -176,6 +193,21 @@ export const barcodeSettingsV2Translations = {
     barcodeHeight: 'Barcode Height (mm)',
     lineWidth: 'Line Width',
     displayBarcodeText: 'Display Barcode Text',
+    qrCode: 'QR Code',
+    
+    // QR code settings
+    qrCodeSettings: 'QR Code Settings',
+    enableQRCode: 'Enable QR Code',
+    qrCodeContent: 'QR Code Content',
+    qrCodeContentBarcode: 'Same as Barcode',
+    qrCodeContentCustom: 'Custom Content',
+    qrCodeCustomContent: 'Custom QR Content',
+    qrCodeSize: 'QR Code Size (mm)',
+    qrCodeErrorCorrection: 'Error Correction Level',
+    qrCodePosition: 'QR Code Position',
+    qrCodePositionLeft: 'Left',
+    qrCodePositionRight: 'Right',
+    splitLayoutRatio: 'Split Layout Ratio',
     
     // Spacing settings
     spacingSettings: 'Spacing Settings',
@@ -219,6 +251,8 @@ export const barcodeSettingsV2Translations = {
     timesNewRoman: 'Times New Roman',
     courierNew: 'Courier New',
     segoeUI: 'Segoe UI',
+    sansSerifNormal: 'Sans-Serif Normal',
+    sansSerifBold: 'Sans-Serif Bold',
     
     // Button text
     applySettingsAndPreview: 'Apply Settings & Preview'

@@ -465,52 +465,130 @@ const BarcodeSettingsV2Page: React.FC = () => {
                   <Form.Item label={t.barcodeFormat}>
                     <Select 
                       value={settings.barcodeFormat}
-                      onChange={value => handleSettingsChange({ barcodeFormat: value })}
+                      onChange={value => handleSettingsChange({ 
+                        barcodeFormat: value,
+                        // Auto-enable QR code if QR format is selected
+                        enableQRCode: value === 'QR'
+                      })}
                     >
                       <Option value="CODE128">CODE128</Option>
                       <Option value="EAN13">EAN13</Option>
                       <Option value="UPC">UPC</Option>
                       <Option value="CODE39">CODE39</Option>
+                      <Option value="QR">{t.qrCode}</Option>
                     </Select>
                   </Form.Item>
                   
-                  <Form.Item label={t.barcodeWidth}>
-                    <Slider 
-                      min={20} 
-                      max={100} 
-                      value={settings.barcodeWidth}
-                      onChange={value => handleSettingsChange({ barcodeWidth: value })}
-                    />
-                    <span>{settings.barcodeWidth} mm</span>
-                  </Form.Item>
+                  {settings.barcodeFormat !== 'QR' && (
+                    <>
+                      <Form.Item label={t.barcodeWidth}>
+                        <Slider 
+                          min={20} 
+                          max={100} 
+                          value={settings.barcodeWidth}
+                          onChange={value => handleSettingsChange({ barcodeWidth: value })}
+                        />
+                        <span>{settings.barcodeWidth} mm</span>
+                      </Form.Item>
+                      
+                      <Form.Item label={t.barcodeHeight}>
+                        <Slider 
+                          min={5} 
+                          max={50} 
+                          value={settings.barcodeHeight}
+                          onChange={value => handleSettingsChange({ barcodeHeight: value })}
+                        />
+                        <span>{settings.barcodeHeight} mm</span>
+                      </Form.Item>
+                      
+                      <Form.Item label={t.lineWidth}>
+                        <Slider 
+                          min={0.5} 
+                          max={3} 
+                          step={0.1}
+                          value={settings.barcodeLineWidth}
+                          onChange={value => handleSettingsChange({ barcodeLineWidth: value })}
+                        />
+                        <span>{settings.barcodeLineWidth}</span>
+                      </Form.Item>
+                      
+                      <Form.Item label={t.displayBarcodeText}>
+                        <Switch 
+                          checked={settings.displayBarcodeText}
+                          onChange={value => handleSettingsChange({ displayBarcodeText: value })}
+                        />
+                      </Form.Item>
+                    </>
+                  )}
                   
-                  <Form.Item label={t.barcodeHeight}>
-                    <Slider 
-                      min={5} 
-                      max={50} 
-                      value={settings.barcodeHeight}
-                      onChange={value => handleSettingsChange({ barcodeHeight: value })}
-                    />
-                    <span>{settings.barcodeHeight} mm</span>
-                  </Form.Item>
-                  
-                  <Form.Item label={t.lineWidth}>
-                    <Slider 
-                      min={0.5} 
-                      max={3} 
-                      step={0.1}
-                      value={settings.barcodeLineWidth}
-                      onChange={value => handleSettingsChange({ barcodeLineWidth: value })}
-                    />
-                    <span>{settings.barcodeLineWidth}</span>
-                  </Form.Item>
-                  
-                  <Form.Item label={t.displayBarcodeText}>
-                    <Switch 
-                      checked={settings.displayBarcodeText}
-                      onChange={value => handleSettingsChange({ displayBarcodeText: value })}
-                    />
-                  </Form.Item>
+                  {settings.barcodeFormat === 'QR' && (
+                    <>
+                      <Form.Item label={t.qrCodeContent}>
+                        <Select 
+                          value={settings.qrCodeContent}
+                          onChange={value => handleSettingsChange({ qrCodeContent: value })}
+                        >
+                          <Option value="barcode">{t.qrCodeContentBarcode}</Option>
+                          <Option value="custom">{t.qrCodeContentCustom}</Option>
+                        </Select>
+                      </Form.Item>
+                      
+                      {settings.qrCodeContent === 'custom' && (
+                        <Form.Item label={t.qrCodeCustomContent}>
+                          <Input 
+                            value={settings.qrCodeCustomContent}
+                            onChange={e => handleSettingsChange({ qrCodeCustomContent: e.target.value })}
+                          />
+                        </Form.Item>
+                      )}
+                      
+                      <Form.Item label={t.qrCodeSize}>
+                        <Slider 
+                          min={10} 
+                          max={100} 
+                          value={settings.qrCodeSize}
+                          onChange={value => handleSettingsChange({ qrCodeSize: value })}
+                        />
+                        <span>{settings.qrCodeSize} mm</span>
+                      </Form.Item>
+                      
+                      <Form.Item label={t.qrCodeErrorCorrection}>
+                        <Select 
+                          value={settings.qrCodeErrorCorrection}
+                          onChange={value => handleSettingsChange({ qrCodeErrorCorrection: value })}
+                        >
+                          <Option value="L">L - 7%</Option>
+                          <Option value="M">M - 15%</Option>
+                          <Option value="Q">Q - 25%</Option>
+                          <Option value="H">H - 30%</Option>
+                        </Select>
+                      </Form.Item>
+                      
+                      <Form.Item label={t.qrCodePosition}>
+                        <Select 
+                          value={settings.qrCodePosition}
+                          onChange={value => handleSettingsChange({ qrCodePosition: value })}
+                        >
+                          <Option value="center">{t.center}</Option>
+                          <Option value="left">{t.qrCodePositionLeft}</Option>
+                          <Option value="right">{t.qrCodePositionRight}</Option>
+                        </Select>
+                      </Form.Item>
+                      
+                      {(settings.qrCodePosition === 'left' || settings.qrCodePosition === 'right') && (
+                        <Form.Item label={t.splitLayoutRatio}>
+                          <Slider 
+                            min={0.2} 
+                            max={0.8} 
+                            step={0.05}
+                            value={settings.splitLayoutRatio}
+                            onChange={value => handleSettingsChange({ splitLayoutRatio: value })}
+                          />
+                          <span>{settings.splitLayoutRatio * 100}%</span>
+                        </Form.Item>
+                      )}
+                    </>
+                  )}
                 </Form>
               </Card>
               
@@ -571,7 +649,9 @@ const BarcodeSettingsV2Page: React.FC = () => {
                       value={settings.fontFamily}
                       onChange={value => handleSettingsChange({ fontFamily: value })}
                     >
-                      <Option value="Arial, sans-serif">Arial</Option>
+                      <Option value="Arial, sans-serif">{t.arial}</Option>
+                      <Option value="'Segoe UI', 'Helvetica Neue', Roboto, 'Open Sans', sans-serif">{t.sansSerifNormal}</Option>
+                      <Option value="'Segoe UI Bold', 'Helvetica Neue Bold', 'Roboto Bold', 'Open Sans Bold', sans-serif">{t.sansSerifBold}</Option>
                       <Option value="'Times New Roman', serif">Times New Roman</Option>
                       <Option value="'Courier New', monospace">Courier New</Option>
                       <Option value="Verdana, sans-serif">Verdana</Option>

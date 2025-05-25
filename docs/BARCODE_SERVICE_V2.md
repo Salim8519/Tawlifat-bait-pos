@@ -23,24 +23,30 @@ The Barcode Service V2 is an enhanced version of the original barcode printing s
 ### Core Files
 
 1. **`src/services/barcodeServiceV2.ts`**
-   - Core service implementation
-   - Contains interfaces, default settings, and printing logic
-   - Handles HTML/CSS template generation
-   - Manages barcode rendering with JsBarcode
+   - Public API and interfaces
+   - Contains type definitions and configuration settings
+   - Exports the main functions for barcode printing
+   - Handles settings persistence and template management
 
-2. **`src/hooks/useBarcodeServiceV2.ts`**
+2. **`src/services/barcodeServiceV2Core.ts`**
+   - Core implementation details
+   - Contains the HTML generation logic
+   - Handles barcode validation and formatting
+   - Implements utility functions like date formatting
+
+3. **`src/hooks/useBarcodeServiceV2.ts`**
    - React hook for component integration
    - Provides state management
    - Handles settings persistence
    - Exposes simplified API for components
 
-3. **`src/pages/BarcodeSettingsV2Page.tsx`**
+4. **`src/pages/BarcodeSettingsV2Page.tsx`**
    - Main UI page for barcode settings
    - Provides controls for all customization options
    - Includes live preview functionality
    - Organizes settings into logical groups
 
-4. **`src/translations/barcodeSettingsV2.ts`**
+5. **`src/translations/barcodeSettingsV2.ts`**
    - Internationalization support
    - Contains translations for all UI elements
 
@@ -53,6 +59,24 @@ The Barcode Service V2 is an enhanced version of the original barcode printing s
 2. **`src/components/layout/Sidebar.tsx`**
    - Navigation menu item for Barcode Settings V2
    - Provides access to the settings page
+
+## File Structure
+
+The barcode service is organized following the Single Responsibility Principle:
+
+```
+src/
+├── services/
+│   ├── barcodeServiceV2.ts       # Public API, interfaces, and configuration
+│   └── barcodeServiceV2Core.ts   # Implementation details and HTML generation
+├── hooks/
+│   └── useBarcodeServiceV2.ts    # React hook for component integration
+└── pages/
+    └── BarcodeSettingsV2Page.tsx # UI controls and preview
+```
+
+This separation improves maintainability while preserving backward compatibility
+with existing code that uses the barcode service.
 
 ## Key Interfaces
 
@@ -170,6 +194,15 @@ const MyComponent = () => {
   );
 };
 ```
+
+### Implementation Notes
+
+The barcode service is implemented across two files:
+- `barcodeServiceV2.ts` - Contains the public API that components should import from
+- `barcodeServiceV2Core.ts` - Contains implementation details
+
+When using the service, always import from `barcodeServiceV2.ts` or use the
+`useBarcodeServiceV2` hook to ensure compatibility with future updates.
 
 ## Predefined Templates
 

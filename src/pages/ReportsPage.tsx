@@ -8,6 +8,8 @@ import { startOfDay, endOfDay, format, subDays, subWeeks, subMonths } from 'date
 import { getActiveBranches, type Branch } from '../services/dashboardService';
 import { useUserStore } from '../store/useUserStore';
 import { TransactionReport } from '../components/reports/transactions/TransactionReport';
+import { MonthlySalesReport } from '../components/reports/sales/MonthlySalesReport';
+import { TopProductsReport } from '../components/reports/products/TopProductsReport';
 import { ReportSelector, type ReportType } from '../components/reports/ReportSelector';
 
 export function ReportsPage() {
@@ -115,7 +117,9 @@ export function ReportsPage() {
       case 'transactions':
         return <TransactionReport {...commonProps} />;
       case 'sales':
+        return <MonthlySalesReport {...commonProps} />;
       case 'products':
+        return <TopProductsReport {...commonProps} />;
       case 'inventory':
         return (
           <div className="bg-white rounded-lg shadow p-6">

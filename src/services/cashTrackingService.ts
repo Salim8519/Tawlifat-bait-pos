@@ -247,12 +247,18 @@ export async function updateCashForSale(
 
 /**
  * Update cash tracking for a return
+ * @param businessCode The business code
+ * @param branchName The branch name
+ * @param cashierName The cashier processing the return
+ * @param returnAmount The total return amount (including product price and commission)
+ * @param commissionAmount The commission amount included in the return
  */
 export async function updateCashForReturn(
   businessCode: string,
   branchName: string,
   cashierName: string,
-  returnAmount: number
+  returnAmount: number,
+  commissionAmount: number = 0
 ): Promise<CashTracking> {
   try {
     // Get the latest tracking record
@@ -262,17 +268,32 @@ export async function updateCashForReturn(
     const previousTotal = latestTracking?.new_total_cash || 0;
     const newTotal = previousTotal - returnAmount;
 
-    // Create new tracking record with previous total
-    return createCashTracking({
-      business_code: businessCode,
-      business_branch_name: branchName,
-      cashier_name: cashierName,
-      previous_total_cash: previousTotal,
-      new_total_cash: newTotal,
-      cash_removals: returnAmount,
-      total_returns: returnAmount,
-      cash_change_reason: 'return'
-    });
+    // Create new tracking record with previous total - without creating transactions
+    // The transactions are now created in ReturnProductsPage.tsx to avoid duplication
+    const result = await supabase
+      .from('cash_tracking')
+      .insert({
+        tracking_id: generateTrackingId(),
+        business_code: businessCode,
+        business_branch_name: branchName,
+        cashier_name: cashierName,
+        previous_total_cash: previousTotal,
+        new_total_cash: newTotal,
+        cash_additions: 0,
+        cash_removals: returnAmount,
+        cash_change_reason: commissionAmount > 0 ? 'return with commission' : 'return',
+        total_returns: returnAmount,
+        transaction_date: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+      })
+      .select('*')
+      .single();
+      
+    if (result.error) {
+      throw result.error;
+    }
+      
+    return result.data;
   } catch (error) {
     console.error('Error updating cash for return:', error);
     throw error;

@@ -6,9 +6,15 @@
  * - Fine-grained control over spacing and dimensions
  * - Optimized for thermal printers
  * - Customizable barcode formats and styles
+ * - QR code support with split layout
  */
 
 import JsBarcode from 'jsbarcode';
+import { 
+  formatDate, 
+  generateBarcodeHTML, 
+  convertLegacyData 
+} from './barcodeServiceV2Core';
 
 // Core interfaces for barcode data and settings
 export interface BarcodeDataV2 {
@@ -57,6 +63,7 @@ export interface BarcodeSettingsV2 {
   businessNameFontSize: number;
   businessNameFontWeight: string;
   vendorNameFontSize: number;
+  vendorNameFontWeight: string; // Added vendor name font weight
   productNameFontSize: number;
   productNameFontWeight: string;
   barcodeFontSize: number;
@@ -68,6 +75,15 @@ export interface BarcodeSettingsV2 {
   datesFontWeight: string;
   rtl: boolean;
   darkMode: boolean;
+  
+  // QR code settings
+  enableQRCode: boolean;                // Toggle QR code display
+  qrCodeContent: 'barcode' | 'custom';  // What data to encode in QR
+  qrCodeCustomContent: string;          // Custom data for QR if not using barcode
+  qrCodeSize: number;                   // Size of QR code in mm
+  qrCodeErrorCorrection: 'L' | 'M' | 'Q' | 'H'; // Error correction level
+  qrCodePosition: 'left' | 'right';     // Position of QR code
+  splitLayoutRatio: number;             // Ratio of QR to text (e.g., 0.5 for 50/50)
 }
 
 // Predefined templates for common printer types
@@ -134,10 +150,11 @@ export const DEFAULT_BARCODE_SETTINGS: BarcodeSettingsV2 = {
   showProductionDate: true,
   
   // Font settings
-  fontFamily: 'Arial, sans-serif',
+  fontFamily: 'Segoe UI, Helvetica Neue, Roboto, Open Sans, sans-serif',
   businessNameFontSize: 10,
   businessNameFontWeight: 'bold',
   vendorNameFontSize: 8,
+  vendorNameFontWeight: 'normal',
   productNameFontSize: 9,
   productNameFontWeight: 'bold',
   barcodeFontSize: 8,
@@ -145,8 +162,8 @@ export const DEFAULT_BARCODE_SETTINGS: BarcodeSettingsV2 = {
   priceFontSize: 10,
   priceFontWeight: 'bold',
   dateFontSize: 7,
-  dateFontWeight: 'bold',
-  datesFontWeight: 'bold',
+  dateFontWeight: 'normal',
+  datesFontWeight: 'normal',
   
   // Spacing settings
   lineSpacing: 1,         // Space between lines
@@ -164,6 +181,15 @@ export const DEFAULT_BARCODE_SETTINGS: BarcodeSettingsV2 = {
   darkMode: false,         // Dark mode (inverted colors)
   textAlignment: 'left',   // Text alignment
   globalFontWeight: 'bold', // Default to bold for better print quality
+  
+  // QR code settings
+  enableQRCode: false,
+  qrCodeContent: 'barcode',
+  qrCodeCustomContent: '',
+  qrCodeSize: 25,
+  qrCodeErrorCorrection: 'M',
+  qrCodePosition: 'left',
+  splitLayoutRatio: 0.5,
 };
 
 /**
@@ -205,428 +231,6 @@ export function applyPrinterTemplate(
 ): BarcodeSettingsV2 {
   const template = PRINTER_TEMPLATES[templateName];
   return { ...currentSettings, ...template };
-}
-
-/**
- * Format date for display
- */
-function formatDate(date: string | undefined): string {
-  if (!date) return '';
-  try {
-    const dateObj = new Date(date);
-    return dateObj.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  } catch (error) {
-    console.error('Error formatting date:', error);
-    return date;
-  }
-}
-
-/**
- * Generate HTML content for barcode printing
- */
-function generateBarcodeHTML(
-  data: BarcodeDataV2,
-  settings: BarcodeSettingsV2,
-  autoPrint: boolean = false
-): string {
-  const {
-    barcode,
-    productName,
-    price,
-    businessName,
-    vendorName,
-    expiryDate,
-    productionDate,
-    currency = 'OMR'
-  } = data;
-
-  const {
-    printerType,
-    labelWidth,
-    labelHeight,
-    fontFamily,
-    businessNameFontSize,
-    vendorNameFontSize,
-    productNameFontSize,
-    barcodeFontSize,
-    priceFontSize,
-    dateFontSize,
-    lineSpacing,
-    sectionSpacing,
-    globalSpacing,
-    barcodeLineWidth,
-    barcodeHeight,
-    showBusinessName,
-    showVendorName,
-    showProductName,
-    showPrice,
-    showExpiryDate,
-    showProductionDate,
-    rtl,
-    darkMode,
-    textAlignment,
-    globalFontWeight,
-    businessNameFontWeight,
-    productNameFontWeight,
-    priceFontWeight,
-    barcodeFontWeight,
-    datesFontWeight,
-    barcodeFormat,
-    // other settings...
-  } = settings;
-
-  // Validate barcode format
-  let validatedBarcode = barcode;
-  let formatError = false;
-  let errorMessage = '';
-
-  // Format-specific validation
-  if (barcodeFormat === 'UPC') {
-    // UPC requires exactly 12 digits
-    const upcRegex = /^\d{12}$/;
-    if (!upcRegex.test(barcode)) {
-      // If not valid, pad with zeros or truncate to make it 12 digits
-      validatedBarcode = barcode.replace(/\D/g, ''); // Remove non-digits
-      if (validatedBarcode.length < 12) {
-        validatedBarcode = validatedBarcode.padStart(12, '0');
-      } else if (validatedBarcode.length > 12) {
-        validatedBarcode = validatedBarcode.substring(0, 12);
-      }
-      console.warn(`UPC format requires exactly 12 digits. Original: ${barcode}, Modified: ${validatedBarcode}`);
-    }
-  } else if (barcodeFormat === 'EAN13') {
-    // EAN13 requires exactly 13 digits
-    const ean13Regex = /^\d{13}$/;
-    if (!ean13Regex.test(barcode)) {
-      validatedBarcode = barcode.replace(/\D/g, ''); // Remove non-digits
-      if (validatedBarcode.length < 13) {
-        validatedBarcode = validatedBarcode.padStart(13, '0');
-      } else if (validatedBarcode.length > 13) {
-        validatedBarcode = validatedBarcode.substring(0, 13);
-      }
-      console.warn(`EAN13 format requires exactly 13 digits. Original: ${barcode}, Modified: ${validatedBarcode}`);
-    }
-  }
-
-  // Calculate dimensions and scaling
-  const contentWidth = `${labelWidth}mm`;
-  const contentHeight = `${labelHeight}mm`;
-  
-  // Format dates
-  const formattedExpiryDate = formatDate(expiryDate);
-  const formattedProductionDate = formatDate(productionDate);
-  
-  // Prepare CSS variables for dynamic styling
-  const cssVariables = `
-    --font-family: ${fontFamily};
-    --business-name-font-size: ${businessNameFontSize}pt;
-    --vendor-name-font-size: ${vendorNameFontSize}pt;
-    --product-name-font-size: ${productNameFontSize}pt;
-    --barcode-font-size: ${barcodeFontSize}pt;
-    --price-font-size: ${priceFontSize}pt;
-    --date-font-size: ${dateFontSize}pt;
-    --line-spacing: ${lineSpacing}mm;
-    --section-spacing: ${sectionSpacing}mm;
-    --global-spacing: ${globalSpacing}mm;
-    --barcode-width: ${barcodeLineWidth}mm;
-    --barcode-height: ${barcodeHeight}mm;
-    --content-width: ${contentWidth};
-    --content-height: ${contentHeight};
-    --text-color: ${darkMode ? 'white' : 'black'};
-    --bg-color: ${darkMode ? 'black' : 'white'};
-    --text-align: ${textAlignment};
-    --direction: ${rtl ? 'rtl' : 'ltr'};
-    --global-font-weight: ${globalFontWeight};
-    --business-name-font-weight: ${businessNameFontWeight};
-    --product-name-font-weight: ${productNameFontWeight};
-    --price-font-weight: ${priceFontWeight};
-    --barcode-font-weight: ${barcodeFontWeight};
-    --dates-font-weight: ${datesFontWeight};
-  `;
-
-  // Base CSS styles
-  const styles = `
-    @media print {
-      @page {
-        size: ${labelWidth}mm ${labelHeight}mm;
-        margin: 0;
-      }
-      
-      body {
-        margin: 0;
-        padding: 0;
-        -webkit-print-color-adjust: exact !important;
-        color-adjust: exact !important;
-      }
-      
-      /* Improve print quality */
-      * {
-        text-rendering: optimizeLegibility;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-      }
-    }
-    
-    .barcode-container {
-      font-family: var(--font-family);
-      width: var(--content-width);
-      height: var(--content-height);
-      padding: 1mm;
-      box-sizing: border-box;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      direction: var(--direction);
-      text-align: var(--text-align);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-    
-    .business-info {
-      margin-bottom: calc(var(--section-spacing) * var(--global-spacing));
-    }
-    
-    .business-name {
-      font-size: var(--business-name-font-size);
-      font-weight: var(--business-name-font-weight);
-      margin-bottom: calc(var(--line-spacing) * var(--global-spacing));
-      letter-spacing: -0.2px; /* Tighten letter spacing for better print */
-    }
-    
-    .vendor-name {
-      font-size: var(--vendor-name-font-size);
-      font-weight: var(--global-font-weight); /* Apply global font weight */
-      margin-bottom: calc(var(--line-spacing) * var(--global-spacing));
-      letter-spacing: -0.2px;
-    }
-    
-    .product-info {
-      margin-bottom: calc(var(--section-spacing) * var(--global-spacing));
-    }
-    
-    .product-name {
-      font-size: var(--product-name-font-size);
-      font-weight: var(--product-name-font-weight);
-      margin-bottom: calc(var(--line-spacing) * var(--global-spacing));
-      word-wrap: break-word;
-      letter-spacing: -0.2px;
-    }
-    
-    .barcode-section {
-      text-align: center; /* Always center the barcode SVG itself */
-      margin-bottom: calc(var(--section-spacing) * var(--global-spacing));
-    }
-    
-    .barcode-section svg {
-      max-width: 100%;
-      height: auto;
-      /* Make barcode lines darker and crisper */
-      shape-rendering: crispEdges;
-    }
-    
-    .barcode-text {
-      font-size: var(--barcode-font-size);
-      font-weight: var(--barcode-font-weight);
-      margin-top: calc(var(--line-spacing) * var(--global-spacing));
-      text-align: var(--text-align); /* Apply the text alignment to the barcode text */
-      letter-spacing: -0.2px;
-    }
-    
-    .price-section {
-      font-size: var(--price-font-size);
-      font-weight: var(--price-font-weight);
-      margin-bottom: calc(var(--section-spacing) * var(--global-spacing));
-      letter-spacing: -0.2px;
-    }
-    
-    .dates-section {
-      font-size: var(--date-font-size);
-      font-weight: var(--dates-font-weight);
-      display: flex;
-      flex-direction: row;
-      justify-content: center;
-      gap: 3mm;
-      margin-top: calc(var(--line-spacing) * var(--global-spacing));
-      white-space: nowrap;
-      width: 100%;
-      letter-spacing: -0.2px;
-    }
-    
-    .date-item {
-      display: inline-block;
-    }
-    
-    .expiry-date {
-      color: ${darkMode ? '#ffffff' : '#000000'};
-      font-weight: var(--dates-font-weight);
-    }
-    
-    .barcode-error {
-      color: red;
-      text-align: center;
-      margin: 10px 0;
-      display: none;
-      font-size: 12px;
-    }
-    .barcode-fallback {
-      border: 1px dashed #ccc;
-      padding: 10px;
-      text-align: center;
-      margin: 10px 0;
-      display: none;
-      font-size: 14px;
-      background-color: #f8f8f8;
-    }
-  `;
-
-  // Prepare dates content - only create this once
-  let datesContent = '';
-  const showDates = (showExpiryDate && formattedExpiryDate) || (showProductionDate && formattedProductionDate);
-  
-  if (showDates) {
-    const prodDate = showProductionDate && formattedProductionDate ? 
-      `<span class="date-item production-date">Prod: ${formattedProductionDate}</span>` : '';
-    
-    const expDate = showExpiryDate && formattedExpiryDate ? 
-      `<span class="date-item expiry-date">Exp: ${formattedExpiryDate}</span>` : '';
-    
-    datesContent = `
-      <div class="dates-section">
-        ${prodDate}
-        ${expDate}
-      </div>
-    `;
-  }
-
-  // Create the script with or without auto-print functionality
-  let scriptContent = `
-    <script>
-      window.onload = function() {
-        try {
-          JsBarcode("#barcode", "${validatedBarcode}", {
-            format: "${barcodeFormat}",
-            width: ${settings.barcodeLineWidth},
-            height: ${settings.barcodeHeight},
-            displayValue: false, // Always hide the built-in text
-            margin: 0,
-            background: "${darkMode ? 'black' : 'white'}",
-            lineColor: "${darkMode ? 'white' : 'black'}",
-            // Improve print quality with these settings
-            textMargin: 0,
-            fontSize: 0, // We'll use our own text display
-            valid: function(valid) {
-              if (!valid) {
-                console.error("Invalid barcode format");
-                document.getElementById('barcode-error').style.display = 'block';
-              }
-            }
-          });
-          
-          // Apply additional SVG optimizations for print
-          const svgElement = document.querySelector("#barcode");
-          if (svgElement) {
-            // Make sure paths have no anti-aliasing
-            const paths = svgElement.querySelectorAll("path, rect");
-            paths.forEach(path => {
-              path.setAttribute("shape-rendering", "crispEdges");
-              // Make lines slightly thicker for better printing
-              if (path.getAttribute("fill") === "${darkMode ? 'white' : 'black'}") {
-                // This is a bar element
-                const currentWidth = parseFloat(path.getAttribute("width") || "1");
-                // Add a tiny bit of width to each bar for better printing
-                path.setAttribute("width", (currentWidth + 0.1).toString());
-              }
-            });
-          }
-          
-          document.getElementById('barcode-error').style.display = 'none';
-        } catch (error) {
-          console.error('Error generating barcode:', error);
-          document.getElementById('barcode-error').style.display = 'block';
-          document.getElementById('barcode-error').textContent = 'Error: ' + error.message;
-          
-          // For preview, show a fallback message
-          if (!autoPrint) {
-            document.getElementById('barcode-fallback').style.display = 'block';
-          }
-        }
-        
-        // Auto-print functionality if requested
-        if (autoPrint) {
-          // Auto-print after rendering
-          setTimeout(() => {
-            window.focus(); // Focus the window to ensure print dialog appears in front
-            window.print(); // Directly open the system print dialog
-            setTimeout(() => {
-              window.close();
-            }, 500);
-          }, 300);
-        }
-      };
-    </script>
-  `;
-
-  // Construct HTML content
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <title>Barcode Print</title>
-      <style>
-        :root {
-          ${cssVariables}
-        }
-        ${styles}
-      </style>
-      <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    </head>
-    <body>
-      <div class="barcode-container">
-        ${showBusinessName && businessName ? `
-          <div class="business-info">
-            <div class="business-name">${businessName}</div>
-            ${showVendorName && vendorName ? `<div class="vendor-name">${vendorName}</div>` : ''}
-          </div>
-        ` : ''}
-        
-        ${showProductName ? `
-          <div class="product-info">
-            <div class="product-name">${productName}</div>
-          </div>
-        ` : ''}
-        
-        <div class="barcode-section">
-          <svg id="barcode"></svg>
-          <div id="barcode-error" class="barcode-error"></div>
-          <div id="barcode-fallback" class="barcode-fallback">
-            ${barcodeFormat === 'UPC' ? 
-              `UPC format requires exactly 12 digits (current: ${barcode.length} digits)` : 
-              barcodeFormat === 'EAN13' ? 
-              `EAN13 format requires exactly 13 digits (current: ${barcode.length} digits)` :
-              `Invalid barcode format`
-            }
-          </div>
-          ${settings.displayBarcodeText ? `<div class="barcode-text">${validatedBarcode}</div>` : ''}
-        </div>
-        
-        ${showPrice ? `
-          <div class="price-section">
-            ${price.toFixed(3)} ${currency}
-          </div>
-        ` : ''}
-        
-        ${datesContent}
-      </div>
-      
-      ${scriptContent}
-    </body>
-    </html>
-  `;
 }
 
 /**
@@ -700,29 +304,5 @@ export function generateBarcodePreview(
   return generateBarcodeHTML(data, mergedSettings, false);
 }
 
-/**
- * Compatibility function for old barcode service
- */
-export function convertLegacyData(
-  legacyData: {
-    productId: string;
-    vendorId: string;
-    name: string;
-    price: number;
-    businessName?: string;
-    vendorName?: string;
-    expiryDate?: string;
-    productionDate?: string;
-    existingBarcode?: string;
-  }
-): BarcodeDataV2 {
-  return {
-    barcode: legacyData.existingBarcode || `${legacyData.productId}${legacyData.vendorId}`.substring(0, 12),
-    productName: legacyData.name,
-    price: legacyData.price,
-    businessName: legacyData.businessName,
-    vendorName: legacyData.vendorName,
-    expiryDate: legacyData.expiryDate,
-    productionDate: legacyData.productionDate
-  };
-}
+// Re-export convertLegacyData from core
+export { convertLegacyData };

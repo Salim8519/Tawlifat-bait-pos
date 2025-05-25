@@ -7,8 +7,10 @@ import { useBusinessStore } from '../store/useBusinessStore';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 import { BranchSelector } from '../components/products/BranchSelector';
-import { getBranchesByBusinessCode } from '../services/businessService';
+import { getBranchesByBusinessCode, ensureBusinessName } from '../services/businessService';
 import { updateCashForReturn } from '../services/cashTrackingService';
+import { createTransaction } from '../services/transactionService';
+import { vendorTransactionService } from '../services/vendorTransactionService';
 import type { Branch } from '../types/branch';
 import { returnProductsTranslations } from '../translations/returnProducts';
 
@@ -58,6 +60,7 @@ export function ReturnProductsPage() {
   const [paymentMethod, setPaymentMethod] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [returnCalculation, setReturnCalculation] = useState<{ productTotal: number; commissionTotal: number; total: number }>({ productTotal: 0, commissionTotal: 0, total: 0 });
 
   const t = useMemo(() => {
     return Object.entries(returnProductsTranslations).reduce((acc, [key, value]) => {
@@ -190,12 +193,8 @@ export function ReturnProductsPage() {
       setLoading(true);
       setError(null);
 
-      // Calculate total return amount
-      const totalReturnAmount = selectedProducts.reduce((total, productId) => {
-        const product = soldProducts.find(p => p.sold_product_id === productId);
-        if (!product) return total;
-        return total + (product.quantity * product.unit_price_original);
-      }, 0);
+      // Use the pre-calculated return amount from state
+      const totalReturnAmount = returnCalculation.total;
 
       const now = new Date().toISOString();
       
@@ -213,8 +212,8 @@ export function ReturnProductsPage() {
         .from('receipts')
         .insert([
           {
-            receipt_id: `RET-${receipt.receipt_id}`,
-            transaction_id: `TR-${Date.now()}`,
+            receipt_id: `RET-${receipt.receipt_id}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            transaction_id: `TR-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
             business_code: receipt.business_code,
             branch_name: receipt.branch_name,
             cashier_name: userProfile?.full_name || 'Unknown',
@@ -231,11 +230,24 @@ export function ReturnProductsPage() {
             vendor_commission_enabled: receipt.vendor_commission_enabled,
             tax_amount: 0,
             discount: 0,
-            commission_amount_from_vendors: 0,
-            long_text_receipt: `Return Receipt\n\nOriginal Receipt: ${receipt.receipt_id}\nReturn Date: ${new Date().toLocaleDateString()}\nProcessed By: ${userProfile?.full_name || 'Unknown'}\nReason: ${returnReason}\n\nReturned Items:\n${selectedProducts.map(productId => {
+            commission_amount_from_vendors: -returnCalculation.commissionTotal, // Negative commission amount for returns (hidden from receipt)
+            long_text_receipt: `Return Receipt
+
+Original Receipt: ${receipt.receipt_id}
+Return Date: ${new Date().toLocaleDateString()}
+Processed By: ${userProfile?.full_name || 'Unknown'}
+Reason: ${returnReason}
+
+Returned Items:
+${selectedProducts.map(productId => {
               const product = soldProducts.find(p => p.sold_product_id === productId);
-              return `- ${product?.product_name}: ${product?.unit_price_original} x ${product?.quantity}`;
-            }).join('\n')}`
+              const productTotal = product ? product.quantity * product.unit_price_original : 0;
+              let itemText = `- ${product?.product_name}: ${product?.unit_price_original} x ${product?.quantity} = ${productTotal.toFixed(2)}`;
+              return itemText;
+            }).join('\n')}
+
+Product Total: ${returnCalculation.productTotal.toFixed(2)}
+Total Refund: ${totalReturnAmount.toFixed(2)}`
           }
         ])
         .select()
@@ -260,9 +272,10 @@ export function ReturnProductsPage() {
               quantity: -product.quantity, // Negative quantity for returns
               business_code: receipt.business_code,
               business_bracnh_name: receipt.branch_name,
-              total_price: -(product.quantity * product.unit_price_original),
+              // Include commission in total_price for accurate refund amount
+              total_price: -(product.quantity * product.unit_price_original + (product.comission_for_bussnies_from_vendor || 0)),
               vendor_code_if_by_vendor: product.vendor_code_if_by_vendor,
-              comission_for_bussnies_from_vendor: product.comission_for_bussnies_from_vendor,
+              comission_for_bussnies_from_vendor: product.comission_for_bussnies_from_vendor ? -product.comission_for_bussnies_from_vendor : null, // Negative commission for returns
               created_at: now
             };
           })
@@ -270,19 +283,58 @@ export function ReturnProductsPage() {
 
       if (productsError) throw productsError;
 
-      // If payment method is cash, update cash tracking
-      if (paymentMethod === 'cash' && user?.businessCode) {
+      // Create vendor transactions for each vendor product
+      await createVendorTransactionsForReturn(selectedProducts, soldProducts, receipt);
+
+      // Handle payment method specific processing
+      if (user?.businessCode) {
         try {
-          await updateCashForReturn(
-            user.businessCode,
-            receipt.branch_name,
-            userProfile?.full_name || 'Unknown',
-            totalReturnAmount
-          );
-        } catch (cashError) {
-          console.error('Error updating cash tracking:', cashError);
+          // Check if there are any vendor products in the return
+          const vendorProducts = selectedProducts
+            .map(productId => soldProducts.find(p => p.sold_product_id === productId))
+            .filter(product => product && product.vendor_code_if_by_vendor);
+          
+          // Use the first vendor code if available (typically returns would be for a single vendor)
+          const vendorCode = vendorProducts.length > 0 ? vendorProducts[0]?.vendor_code_if_by_vendor : undefined;
+          const vendorName = vendorCode ? 'Vendor' : undefined; // You might want to fetch the actual vendor name if needed
+          
+          // First, create the transaction record for all payment methods
+          await createTransaction({
+            business_code: user.businessCode,
+            business_name: receipt.business_name || user.businessCode,
+            branch_name: receipt.branch_name,
+            vendor_code: vendorCode,
+            vendor_name: vendorName,
+            transaction_type: paymentMethod === 'cash' ? 'cash_return' : 'return',
+            amount: -totalReturnAmount, // Negative amount for returns
+            payment_method: paymentMethod,
+            transaction_reason: returnCalculation.commissionTotal > 0 ? 'Product Return with Commission' : 'Product Return',
+            // Owner profit is only reduced by commission amount for vendor products
+            owner_profit_from_this_transcation: vendorCode ? -returnCalculation.commissionTotal : 0,
+            details: {
+              receipt_id: returnReceipt.receipt_id,
+              original_receipt_id: receipt.receipt_id,
+              cashier_name: userProfile?.full_name || 'Unknown',
+              commission_amount: returnCalculation.commissionTotal > 0 ? returnCalculation.commissionTotal : undefined,
+              return_reason: returnReason,
+              vendor_products: vendorProducts.length > 0 ? vendorProducts.map(p => p?.product_name).join(', ') : undefined
+            }
+          });
+          
+          // For cash returns, also update cash tracking (but without creating another transaction)
+          if (paymentMethod === 'cash') {
+            await updateCashForReturn(
+              user.businessCode,
+              receipt.branch_name,
+              userProfile?.full_name || 'Unknown',
+              totalReturnAmount,
+              returnCalculation.commissionTotal // Pass commission amount to cash tracking
+            );
+          }
+        } catch (transactionError) {
+          console.error('Error processing transaction:', transactionError);
           // Don't throw here, as the return was successful
-          toast.error(t.errorUpdatingCash);
+          toast.error(t.errorProcessingTransaction);
         }
       }
 
@@ -305,6 +357,69 @@ export function ReturnProductsPage() {
     }
   };
 
+  /**
+   * Create vendor transactions for each vendor product being returned
+   * @param selectedProductIds IDs of products being returned
+   * @param soldProducts Original sold products data
+   * @param receipt Original receipt data
+   */
+  const createVendorTransactionsForReturn = async (
+    selectedProductIds: string[],
+    soldProducts: SoldProduct[],
+    receipt: Receipt
+  ) => {
+    try {
+      // Group products by vendor code
+      const vendorProducts: Record<string, SoldProduct[]> = {};
+      
+      selectedProductIds.forEach(productId => {
+        const product = soldProducts.find(p => p.sold_product_id === productId);
+        if (!product || !product.vendor_code_if_by_vendor) return;
+        
+        const vendorCode = product.vendor_code_if_by_vendor;
+        if (!vendorProducts[vendorCode]) {
+          vendorProducts[vendorCode] = [];
+        }
+        vendorProducts[vendorCode].push(product);
+      });
+      
+      // Create a transaction for each vendor
+      for (const vendorCode in vendorProducts) {
+        const products = vendorProducts[vendorCode];
+        
+        // Calculate total amount for this vendor (original price only, no commission)
+        const totalAmount = products.reduce((sum, product) => {
+          return sum + (product.quantity * product.unit_price_original);
+        }, 0);
+        
+        // Get the proper business name using the recommended method
+        const businessName = await ensureBusinessName(receipt.business_code, receipt.business_name);
+        
+        // Create vendor transaction
+        await vendorTransactionService.createTransaction({
+          transaction_type: 'product_sale', // Using product_sale type with negative values
+          transaction_date: new Date().toISOString().split('T')[0],
+          business_code: receipt.business_code,
+          business_name: businessName, // Use the properly retrieved business name
+          branch_name: receipt.branch_name,
+          vendor_code: vendorCode,
+          vendor_name: 'Vendor', // Default name
+          amount: -totalAmount, // Negative amount for returns
+          profit: 0, // No profit on returns
+          product_name: products.map(p => p.product_name).join(', '),
+          product_quantity: -products.reduce((sum, p) => sum + p.quantity, 0), // Negative quantity
+          unit_price: products.length === 1 ? products[0].unit_price_original : undefined,
+          total_price: -totalAmount,
+          notes: `Return from receipt ${receipt.receipt_id}`
+        });
+      }
+    } catch (error) {
+      console.error('Error creating vendor transactions for return:', error);
+      // Don't throw the error to avoid blocking the return process
+      // Just log it and continue
+    }
+  };
+
   const handleBranchChange = (branch: string) => {
     setSelectedBranch(branch);
     // Reset form when branch changes
@@ -314,6 +429,34 @@ export function ReturnProductsPage() {
     setReturnReason('');
     setReceiptNumber('');
   };
+
+
+  // Calculate return amounts whenever selected products change
+  useEffect(() => {
+    if (selectedProducts.length === 0) {
+      setReturnCalculation({ productTotal: 0, commissionTotal: 0, total: 0 });
+      return;
+    }
+
+    const calculation = selectedProducts.reduce((calc, productId) => {
+      const product = soldProducts.find(p => p.sold_product_id === productId);
+      if (!product) return calc;
+      
+      // Calculate product price
+      const productAmount = product.quantity * product.unit_price_original;
+      
+      // Add commission if it exists
+      const commissionAmount = product.comission_for_bussnies_from_vendor || 0;
+      
+      return {
+        productTotal: calc.productTotal + productAmount,
+        commissionTotal: calc.commissionTotal + commissionAmount,
+        total: calc.total + productAmount + commissionAmount
+      };
+    }, { productTotal: 0, commissionTotal: 0, total: 0 });
+
+    setReturnCalculation(calculation);
+  }, [selectedProducts, soldProducts]);
 
   const handleProductSelect = (product: SoldProduct) => {
     const isSelected = selectedProducts.some(id => id === product.sold_product_id);
@@ -455,10 +598,19 @@ export function ReturnProductsPage() {
                               {product.quantity}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
-                              {product.unit_price_original}
+                              {/* Show unit price with commission if it exists */}
+                              {product.comission_for_bussnies_from_vendor 
+                                ? (product.unit_price_original + (product.comission_for_bussnies_from_vendor / product.quantity)).toFixed(2)
+                                : product.unit_price_original.toFixed(2)}
+                              {product.comission_for_bussnies_from_vendor > 0 && userProfile?.role === 'owner' && (
+                                <span className="text-xs text-blue-600 block">
+                                  (Incl. commission: {(product.comission_for_bussnies_from_vendor / product.quantity).toFixed(2)})
+                                </span>
+                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 font-medium">
-                              {(product.quantity * product.unit_price_original).toFixed(2)}
+                              {/* Show total with commission */}
+                              {(product.quantity * product.unit_price_original + (product.comission_for_bussnies_from_vendor || 0)).toFixed(2)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-center">
                               {isReturned ? (
@@ -492,18 +644,52 @@ export function ReturnProductsPage() {
                           <div>
                             <div className="font-medium">{product.product_name}</div>
                             <div className="text-sm text-gray-500">
-                              {t.quantity}: {product.quantity} × {product.unit_price_original}
+                              {t.quantity}: {product.quantity} × {
+                                product.comission_for_bussnies_from_vendor 
+                                  ? (product.unit_price_original + (product.comission_for_bussnies_from_vendor / product.quantity)).toFixed(2)
+                                  : product.unit_price_original.toFixed(2)
+                              }
                             </div>
+                            {product.comission_for_bussnies_from_vendor > 0 && userProfile?.role === 'owner' && (
+                              <div className="text-xs text-blue-600">
+                                (Includes commission: {product.comission_for_bussnies_from_vendor.toFixed(2)})
+                              </div>
+                            )}
                           </div>
                           <div className="text-right">
                             <div className="font-medium">
-                              {t.total}: {(product.quantity * product.unit_price_original).toFixed(2)}
+                              {t.total}: {(product.quantity * product.unit_price_original + (product.comission_for_bussnies_from_vendor || 0)).toFixed(2)}
                             </div>
                           </div>
                         </div>
                       );
                     })}
                   </div>
+                  
+                  {/* Return Amount Summary */}
+                  {selectedProducts.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <h4 className="font-medium mb-2">{t.returnSummary}</h4>
+                      <div className="space-y-1">
+                        <div className="return-summary">
+                          <div className="summary-row">
+                            <span>{t.productTotal}:</span>
+                            <span>{returnCalculation.productTotal.toFixed(2)}</span>
+                          </div>
+                          {userProfile?.role === 'owner' && returnCalculation.commissionTotal > 0 && (
+                            <div className="summary-row">
+                              <span>{t.commissionTotal}:</span>
+                              <span>{returnCalculation.commissionTotal.toFixed(2)}</span>
+                            </div>
+                          )}
+                          <div className="summary-row total">
+                            <span>{t.totalRefund}:</span>
+                            <span>{returnCalculation.total.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

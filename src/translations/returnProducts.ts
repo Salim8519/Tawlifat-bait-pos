@@ -135,5 +135,29 @@ export const returnProductsTranslations = {
   total: {
     en: 'Total',
     ar: 'المجموع'
+  },
+  errorProcessingTransaction: {
+    en: 'Error processing transaction',
+    ar: 'خطأ في معالجة المعاملة'
+  },
+  errorUpdatingCash: {
+    en: 'Error updating cash drawer',
+    ar: 'خطأ في تحديث درج النقد'
+  },
+  returnSummary: {
+    en: 'Return Summary',
+    ar: 'ملخص الإرجاع'
+  },
+  productTotal: {
+    en: 'Product Total',
+    ar: 'إجمالي المنتجات'
+  },
+  commissionTotal: {
+    en: 'Commission Total',
+    ar: 'إجمالي العمولة'
+  },
+  totalRefund: {
+    en: 'Total Refund',
+    ar: 'إجمالي المبلغ المسترد'
   }
 };
