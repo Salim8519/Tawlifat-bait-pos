@@ -309,8 +309,11 @@ Total Refund: ${totalReturnAmount.toFixed(2)}`
             amount: -totalReturnAmount, // Negative amount for returns
             payment_method: paymentMethod,
             transaction_reason: returnCalculation.commissionTotal > 0 ? 'Product Return with Commission' : 'Product Return',
-            // Owner profit is only reduced by commission amount for vendor products
-            owner_profit_from_this_transcation: vendorCode ? -returnCalculation.commissionTotal : 0,
+            // For vendor products, owner loses commission
+            // For business products, owner loses the full product amount
+            owner_profit_from_this_transcation: vendorCode ? 
+              -returnCalculation.commissionTotal : // Vendor products: lose commission only
+              -returnCalculation.productTotal, // Business products: lose full product amount
             details: {
               receipt_id: returnReceipt.receipt_id,
               original_receipt_id: receipt.receipt_id,
