@@ -20,6 +20,7 @@ export default defineConfig({
       manifest: {
         name: 'متجري',
         short_name: 'متجري',
+        application_name: 'متجري',
         description: 'نظام نقاط البيع لإدارة متجرك بكفاءة عالية',
         theme_color: '#4f46e5',
         background_color: '#ffffff',

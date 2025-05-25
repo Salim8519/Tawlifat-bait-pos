@@ -10,19 +10,19 @@ interface BeforeInstallPromptEvent extends Event {
 // Translations
 const translations = {
   en: {
-    installApp: 'Install App',
-    installPrompt: 'Install this app on your device for better experience',
+    installApp: 'Install متجري',
+    installPrompt: 'Install متجري on your device for better experience',
     installNow: 'Install Now',
     later: 'Later',
-    alreadyInstalled: 'App is already installed',
+    alreadyInstalled: 'متجري is already installed',
     notSupported: 'Installation not supported on this browser'
   },
   ar: {
-    installApp: 'تثبيت التطبيق',
-    installPrompt: 'قم بتثبيت هذا التطبيق على جهازك للحصول على تجربة أفضل',
+    installApp: 'تثبيت متجري',
+    installPrompt: 'قم بتثبيت متجري على جهازك للحصول على تجربة أفضل',
     installNow: 'تثبيت الآن',
     later: 'لاحقاً',
-    alreadyInstalled: 'التطبيق مثبت بالفعل',
+    alreadyInstalled: 'متجري مثبت بالفعل',
     notSupported: 'التثبيت غير مدعوم في هذا المتصفح'
   }
 };
