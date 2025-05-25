@@ -198,16 +198,23 @@ export async function createProduct(product: Omit<Product, 'product_id' | 'date_
 
 export async function updateProduct(productId: number, updates: Partial<Product>): Promise<Product | null> {
   try {
-    // If we're updating business codes, we should also update the business name
+    // Only update business name if business codes are actually changing in this update
     let businessNameUpdate = {};
     
-    if (updates.business_code_if_vendor) {
-      // For vendor products, get the vendor's business name
+    // Get the current product to check if business codes are changing
+    const { data: currentProduct } = await supabase
+      .from('products')
+      .select('business_code_if_vendor, business_code_of_owner')
+      .eq('product_id', productId)
+      .single();
+    
+    if (updates.business_code_if_vendor && updates.business_code_if_vendor !== currentProduct?.business_code_if_vendor) {
+      // For vendor products, get the vendor's business name only if code changed
       const vendorBusinessName = await ensureBusinessName(updates.business_code_if_vendor);
       console.log(`Updating to vendor business name: ${vendorBusinessName}`);
       businessNameUpdate = { business_name_of_product: vendorBusinessName };
-    } else if (updates.business_code_of_owner) {
-      // For owner products, get the owner's business name
+    } else if (updates.business_code_of_owner && updates.business_code_of_owner !== currentProduct?.business_code_of_owner) {
+      // For owner products, get the owner's business name only if code changed
       const ownerBusinessName = await ensureBusinessName(updates.business_code_of_owner);
       console.log(`Updating to owner business name: ${ownerBusinessName}`);
       businessNameUpdate = { business_name_of_product: ownerBusinessName };
