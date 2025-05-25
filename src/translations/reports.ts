@@ -80,10 +80,10 @@ export const reportTranslations = {
     businessName: 'اسم الشركة',
     vendorName: 'اسم مورد',
     transactionReason: 'السبب',
-    transactionType: 'النوع',
+    transactionTypeLabel: 'النوع',
     // Export
     downloadExcel: 'تحميل كملف Excel',
-    exportReport: 'تصدير التقرير',
+    exportExcel: 'تصدير التقرير',
   },
   en: {
     reports: 'Reports',

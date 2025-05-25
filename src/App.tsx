@@ -42,6 +42,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { UpdatePasswordPage } from './pages/UpdatePasswordPage';
 import ExpensesPage from './pages/ExpensesPage';
 import './i18n';
+import { PWAInstallPrompt } from './components/common/PWAInstallPrompt';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore();
@@ -231,6 +232,7 @@ export default function App() {
   return (
     <>
       <Toaster position={language === 'ar' ? 'top-left' : 'top-right'} />
+      <PWAInstallPrompt />
       <Router>
         <AppRoutes />
       </Router>
